@@ -23,6 +23,13 @@ function getScheduler() {
   return schedulerReady;
 }
 export const warmUpOcr = () => getScheduler();
+// Stop the OCR worker threads (lets tests and scripts exit cleanly).
+export async function shutdownOcr() {
+  if (!schedulerReady) return;
+  const s = await schedulerReady.catch(() => null);
+  schedulerReady = null;
+  await s?.terminate();
+}
 
 async function ocr(image) {
   const s = await getScheduler();
@@ -65,7 +72,7 @@ const CATEGORY_KEYWORDS = {
 };
 const ALCOHOL = /\b(beer|wine|whisk(?:e)?y|vodka|rum|gin|lager|ipa|scotch|cocktail|sangria|champagne|pint|breezer|bira|kingfisher|tequila|bourbon)\b/i;
 
-function findDates(line) {
+export function findDates(line) {
   const out = [];
   const push = (m, y, mo, d) => {
     y = Number(y.length === 2 ? "20" + y : y); mo = Number(mo); d = Number(d);
@@ -85,7 +92,7 @@ function findDates(line) {
   return out.sort((a, b) => a.index - b.index);
 }
 
-function pickDate(lines) {
+export function pickDate(lines) {
   const cands = [];
   lines.forEach((line, li) => {
     let prevEnd = 0;
@@ -105,7 +112,7 @@ function pickDate(lines) {
 }
 
 // First clock time on the bill (e.g. "21:04", "9:15 PM") as 24h "HH:MM". Amounts like 640.00 are not times.
-function pickTime(text) {
+export function pickTime(text) {
   for (const m of text.matchAll(/\b(\d{1,2}):([0-5]\d)(?:\s*([AaPp])\.?\s*[Mm]\.?)?(?!\d)/g)) {
     let h = Number(m[1]);
     if (m[3]) {
@@ -121,7 +128,7 @@ function titleCase(s) {
   return s === s.toUpperCase() ? s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : s;
 }
 
-function pickVendor(lines) {
+export function pickVendor(lines) {
   for (const raw of lines.slice(0, 6)) {
     const l = raw.replace(/[^A-Za-z0-9&'.\- ]/g, "").trim();
     const letters = (l.match(/[A-Za-z]/g) || []).length;
@@ -133,7 +140,7 @@ function pickVendor(lines) {
   return null;
 }
 
-function classifyLine(l) {
+export function classifyLine(l) {
   const s = l.toLowerCase();
   if (/sub[\s-]*total/.test(s)) return "subtotal";
   if (/\b(grand\s*total|total|net\s*(amount|payable)|amount\s*(paid|due|payable)|balance\s*due)\b/.test(s)) return "total";

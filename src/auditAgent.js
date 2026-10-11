@@ -14,7 +14,7 @@ const DAY = 86_400_000;
 
 // ---------------- tools (shared by the Claude agent and the offline agent) ----------------
 // Each returns { status: pass|warn|fail, detail, ...data } so findings render the same everywhere.
-function makeTools(lines, priorDup) {
+export function makeTools(lines, priorDup) {
   const byId = Object.fromEntries(lines.map((l) => [l.itemId, l]));
   const need = (id) => {
     const l = byId[id];
@@ -174,7 +174,7 @@ async function runAIAgent(lines, tools, emit) {
 
 // ---------------- offline rule-based agent (same tools, fixed plan) ----------------
 async function runOfflineAgent(lines, tools, emit) {
-  const pause = () => new Promise((r) => setTimeout(r, 120));
+  const pause = () => new Promise((r) => setTimeout(r, Number(process.env.AUDIT_STEP_DELAY_MS ?? 120)));
   emit({ type: "thought", text: `Offline mode: running the standard audit plan on ${lines.length} bills (add GEMINI_API_KEY or ANTHROPIC_API_KEY to .env for the AI agent).` });
   tools.list_bills();
   emit({ type: "tool", tool: "list_bills", status: "pass", detail: `${lines.length} bills` });
@@ -208,7 +208,7 @@ export async function runAudit(submission, priorDup, emit = () => {}) {
   const tools = makeTools(lines, priorDup);
 
   let run;
-  if (status.claude !== "no_key" && aiUsable()) {
+  if (status.state !== "no_key" && aiUsable()) {
     try {
       emit({ type: "agent", text: "Audit Agent (Live AI) started" });
       run = await runAIAgent(lines, tools, emit);

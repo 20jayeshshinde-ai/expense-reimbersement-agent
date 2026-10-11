@@ -9,10 +9,8 @@ import path from "node:path";
 import { CATEGORIES } from "./policy.js";
 import { extractLocal, LOCAL_ENGINE } from "./localAI.js";
 import { editingTraces, repairGstin } from "./forensics.js";
-import { aiName, aiUsable, checkAI, extractJson, markKeyRejected, MODEL, status } from "./llm.js";
+import { aiName, aiUsable, extractJson, markKeyRejected, status } from "./llm.js";
 
-export { MODEL, status };
-export const checkClaude = checkAI; // kept for server.js
 export const engineName = () => (aiUsable() ? aiName() : LOCAL_ENGINE);
 
 const AmountLine = z.object({ label: z.string(), amount: z.number(), kind: z.enum(["item", "subtotal", "tax", "charge", "discount"]) });
@@ -78,7 +76,7 @@ export async function extractDocument(file) {
   const mediaType = mediaTypeFor(file);
   const started = Date.now();
   let result, engine;
-  if (aiUsable() && status.claude !== "no_key") {
+  if (aiUsable() && status.state !== "no_key") {
     try {
       result = await extractAI(buf, mediaType);
       engine = aiName();

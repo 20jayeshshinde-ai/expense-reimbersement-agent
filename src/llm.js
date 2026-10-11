@@ -13,19 +13,29 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 
 const provider = (process.env.AI_PROVIDER || (GEMINI_KEY ? "gemini" : CLAUDE_KEY ? "claude" : "none")).toLowerCase();
-const gemini = provider === "gemini" && GEMINI_KEY ? new GoogleGenAI({ apiKey: GEMINI_KEY }) : null;
-const claude = provider === "claude" && CLAUDE_KEY ? new Anthropic() : null;
+let gemini = provider === "gemini" && GEMINI_KEY ? new GoogleGenAI({ apiKey: GEMINI_KEY }) : null;
+let claude = provider === "claude" && CLAUDE_KEY ? new Anthropic() : null;
 
-export const MODEL = gemini ? GEMINI_MODEL : CLAUDE_MODEL;
-const label = gemini ? "Gemini" : "Claude";
+export let MODEL = gemini ? GEMINI_MODEL : CLAUDE_MODEL;
+let label = gemini ? "Gemini" : "Claude";
 
 // Live status, verified against the provider at startup (see checkAI).
 export const status = gemini || claude
-  ? { claude: "checking", provider: label, model: MODEL, detail: `Verifying ${label} API key…` }
-  : { claude: "no_key", provider: null, model: null, detail: "No GEMINI_API_KEY or ANTHROPIC_API_KEY in .env" };
-// ("claude" is the historical field name the UI reads: ok | checking | error | no_key)
+  ? { state: "checking", provider: label, model: MODEL, detail: `Verifying ${label} API key…` }
+  : { state: "no_key", provider: null, model: null, detail: "No GEMINI_API_KEY or ANTHROPIC_API_KEY in .env" };
+// state: ok | checking | error | no_key
 
-export const aiUsable = () => status.claude === "ok" || status.claude === "checking";
+// Test seam: swap in a fake Gemini/Claude client (same method shapes) to exercise the adapters offline.
+export function useClientForTests({ gemini: g = null, claude: c = null } = {}) {
+  gemini = g;
+  claude = c;
+  MODEL = g ? GEMINI_MODEL : CLAUDE_MODEL;
+  label = g ? "Gemini" : "Claude";
+  Object.assign(status, g || c ? { state: "ok", provider: label, model: MODEL, detail: "test client" } : { state: "no_key", provider: null, model: null, detail: "No key" });
+  cooldownUntil.clear();
+}
+
+export const aiUsable = () => status.state === "ok" || status.state === "checking";
 export const aiName = () => `${label} (${gemini ? lastModelUsed.name : MODEL})`;
 
 export async function checkAI() {
@@ -34,25 +44,25 @@ export async function checkAI() {
     // A real (tiny) generation call: model listing can succeed for models a key can no longer use.
     if (gemini) await gemini.models.generateContent({ model: MODEL, contents: "ping", config: { maxOutputTokens: 1 } });
     else await claude.models.retrieve(MODEL);
-    Object.assign(status, { claude: "ok", detail: `Connected · ${MODEL}` });
+    Object.assign(status, { state: "ok", detail: `Connected · ${MODEL}` });
   } catch (e) {
     const code = e?.status;
     // Busy or rate-limited means the key works; stay live and let per-request retries handle it.
     if ([429, 500, 503].includes(code)) {
-      Object.assign(status, { claude: "ok", detail: `Connected · ${MODEL} (busy at startup – requests will retry)` });
+      Object.assign(status, { state: "ok", detail: `Connected · ${MODEL} (busy at startup – requests will retry)` });
       return status;
     }
     const why = code === 401 || code === 403 || /api key/i.test(e.message) ? `${label} API key rejected – check .env`
       : code === 404 ? `Model ${MODEL} not available on this key`
       : /fetch failed|ENOTFOUND|ECONN|network/i.test(e.message) ? `Cannot reach the ${label} API (network / proxy)`
       : e.message.slice(0, 160);
-    Object.assign(status, { claude: "error", detail: why });
+    Object.assign(status, { state: "error", detail: why });
   }
   return status;
 }
 
 export function markKeyRejected(e) {
-  if (e?.status === 401 || e?.status === 403) Object.assign(status, { claude: "error", detail: `${label} API key rejected` });
+  if (e?.status === 401 || e?.status === 403) Object.assign(status, { state: "error", detail: `${label} API key rejected` });
 }
 
 // ---------------- Gemini rate limiting ----------------

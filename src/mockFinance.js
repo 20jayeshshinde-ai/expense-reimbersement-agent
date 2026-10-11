@@ -1,7 +1,7 @@
 // Mock corporate reimbursement system ("FinanceHub"). Stands in for SAP Concur / Oracle etc.
 // In-memory only; seeded with a previously-paid claim so cross-claim duplicate detection can be demoed.
 
-const history = [
+const SEED = () => [
   {
     claimId: "EXP-2026-0412",
     status: "paid",
@@ -15,6 +15,8 @@ const history = [
     ],
   },
 ];
+
+const history = SEED();
 
 const toItem = (l) => ({ vendor: l.vendor, date: l.date, time: l.time, total: l.amount, tax: l.tax, currency: l.currency, invoice_number: l.invoiceNumber, line_items: l.lineItems, fileHash: l.fileHash });
 const lineItems = (d) => d.lines.filter((l) => l.verdict === "approved").map(toItem);
@@ -31,6 +33,12 @@ export function priorClaimItems() {
 }
 
 let counter = 1040;
+
+// Test helper: restore the seeded state.
+export function resetFinance() {
+  history.splice(0, history.length, ...SEED());
+  counter = 1040;
+}
 
 // Agent-reviewed claim enters the finance approval queue.
 export function enqueue(employee, decision) {

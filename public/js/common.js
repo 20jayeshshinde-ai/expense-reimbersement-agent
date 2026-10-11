@@ -37,9 +37,9 @@ export function showEngine() {
   const s = CONFIG.status || {};
   const el = $("#engine");
   if (!el) return;
-  el.className = `engine ${s.claude === "ok" ? "live" : s.claude === "checking" ? "chk" : "off"}`;
-  el.innerHTML = s.claude === "ok" ? "● Live AI" : s.claude === "checking" ? "Connecting…" : "● Offline AI";
-  el.title = s.claude === "ok" ? s.detail : `Live AI not active – ${s.detail}. Receipts are read by the offline local AI engine.`;
+  el.className = `engine ${s.state === "ok" ? "live" : s.state === "checking" ? "chk" : "off"}`;
+  el.innerHTML = s.state === "ok" ? "● Live AI" : s.state === "checking" ? "Connecting…" : "● Offline AI";
+  el.title = s.state === "ok" ? s.detail : `Live AI not active – ${s.detail}. Receipts are read by the offline local AI engine.`;
 }
 
 export async function loadConfig() {
@@ -50,7 +50,7 @@ export async function loadConfig() {
   showEngine();
   $("#policyList") && ($("#policyList").innerHTML = (CONFIG.policy || []).map((p) => `<li>${esc(p)}</li>`).join(""));
   $("#policyBtn") && ($("#policyBtn").onclick = () => $("#policyDlg").showModal());
-  for (let i = 0; i < 10 && CONFIG.status?.claude === "checking"; i++) {
+  for (let i = 0; i < 10 && CONFIG.status?.state === "checking"; i++) {
     await sleep(1000);
     Object.assign(CONFIG, await (await fetch("/api/config")).json());
     showEngine();

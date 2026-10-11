@@ -4,10 +4,11 @@
   "description": "AI-native expense & reimbursement assistant: drop receipts, get a submission-ready claim",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.js\"",
     "start": "node src/server.js",
     "samples": "python scripts/make_samples.py",
-    "eval": "node scripts/eval-extraction.js"
+    "eval": "node scripts/eval-extraction.js",
+    "coverage": "node --test --test-concurrency=1 --experimental-test-coverage \"test/**/*.test.js\""
   },
   "keywords": [],
   "author": "",

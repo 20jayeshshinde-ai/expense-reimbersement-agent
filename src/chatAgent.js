@@ -8,7 +8,7 @@ import { chatText, status } from "./llm.js";
 const STATUS_TEXT = { pending_approval: "waiting for a finance approver", approved: "approved", partially_approved: "partially approved", rejected: "rejected" };
 
 // Compact, model-friendly view of the claim (no file hashes or raw OCR).
-function snapshot(state) {
+export function snapshot(state) {
   const d = state.decision;
   const lines = d ? d.lines : [];
   return {
@@ -54,7 +54,7 @@ async function askAI(message, history, snap) {
 }
 
 // ---------------- offline intent answers ----------------
-function answerOffline(message, snap) {
+export function answerOffline(message, snap) {
   const q = message.toLowerCase();
   const c = snap.claim;
   const bills = snap.bills;
@@ -98,7 +98,7 @@ function answerOffline(message, snap) {
 
 export async function chat(message, history, state) {
   const snap = snapshot(state);
-  if (status.claude === "ok") {
+  if (status.state === "ok") {
     try {
       const text = await askAI(message, history, snap);
       if (text) return { reply: text, engine: status.provider };
