@@ -9,6 +9,7 @@ import { warmUpOcr } from "./localAI.js";
 import { addExtraction, buildSubmission, createClaim, evaluate } from "./claim.js";
 import { finalize } from "./financeAgent.js";
 import { runAudit } from "./auditAgent.js";
+import { chat } from "./chatAgent.js";
 import { enqueue, getClaimRecord, listClaims, markDecided } from "./mockFinance.js";
 import { CATEGORIES, POLICY_SUMMARY } from "./policy.js";
 
@@ -35,7 +36,7 @@ const getClaim = (req) => {
   return claims.get(sidOf(req));
 };
 
-const SERVER_VERSION = 3; // bump when the API changes; the page checks it
+const SERVER_VERSION = 4; // bump when the API changes; the page checks it
 app.get("/api/config", (_req, res) => res.json({ version: SERVER_VERSION, live: status.claude === "ok", status, engine: engineName(), categories: CATEGORIES, policy: POLICY_SUMMARY }));
 app.post("/api/engine/recheck", async (_req, res) => res.json(await checkClaude()));
 app.get("/api/claim", (req, res) => res.json(evaluate(getClaim(req))));
@@ -104,6 +105,14 @@ app.get("/api/submit/stream", async (req, res) => {
     send({ type: "error", error: e.message });
   }
   res.end();
+});
+
+// Chat assistant (chat mode): answers questions about the claim.
+app.post("/api/chat", async (req, res) => {
+  const message = String(req.body.message || "").slice(0, 2000).trim();
+  if (!message) return res.status(400).json({ error: "Empty message." });
+  const history = Array.isArray(req.body.history) ? req.body.history.slice(-10) : [];
+  res.json(await chat(message, history, evaluate(getClaim(req))));
 });
 
 // Employee polls their claim's status.
