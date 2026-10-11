@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClaimPilot – Finance</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="role-finance">
+  <div class="app">
+    <aside class="side">
+      <div class="brand"><div class="logo">◆</div><div><b>ClaimPilot</b><small>Finance portal</small></div></div>
+      <nav class="nav">
+        <button class="nav-item active" data-tab="queue"><span>📥</span>Approval queue<em id="queueCount" class="hidden">0</em></button>
+        <button class="nav-item" data-tab="history"><span>🗂️</span>History</button>
+      </nav>
+      <div class="agents">
+        <div class="side-label">Working for you</div>
+        <div class="agent-row done"><i></i><div><b>Audit Agent</b><small>Pre-checks every bill</small></div></div>
+        <div class="agent-row human"><i></i><div><b>You decide</b><small>Nothing is paid without you</small></div></div>
+      </div>
+      <div class="side-foot">
+        <div id="engine" class="engine">…</div>
+        <button id="policyBtn" class="sm">📘 Expense policy</button>
+        <a class="sm signout" href="/">↩ Sign out</a>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="top">
+        <div class="crumb" id="crumb">Approval queue</div>
+        <div class="role-pill">🏦 Finance approver</div>
+        <div class="who"><div class="avatar fin" id="avatar">PN</div><div><b id="whoName">Priya Nair</b><small>Finance · Approver</small></div></div>
+      </header>
+
+      <main class="view">
+        <div id="finKpis" class="kpis"></div>
+        <h3 class="sec" id="listTitle">Approval queue</h3>
+        <div class="card table-card">
+          <table class="fin-table"><thead><tr><th>Claim</th><th>Employee</th><th>Submitted</th><th>Bills</th><th>Amount</th><th>Status</th></tr></thead><tbody id="finRows"></tbody></table>
+        </div>
+        <div id="finDetail"></div>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="policyDlg"><h3>📘 Expense policy (mock)</h3><ul id="policyList"></ul><form method="dialog"><button class="btn">Close</button></form></dialog>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/js/finance.js" type="module"></script>
+</body>
+</html>

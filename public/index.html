@@ -3,110 +3,33 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ClaimPilot – Expense & Reimbursement Agent</title>
+  <title>ClaimPilot – Sign in</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body>
-  <div class="app">
-    <!-- ================= SIDEBAR ================= -->
-    <aside class="side">
-      <div class="brand"><div class="logo">◆</div><div><b>ClaimPilot</b><small>Expense AI Agents</small></div></div>
-      <nav class="nav">
-        <button class="nav-item active" data-view="employee"><span>🧾</span>My claim</button>
-        <button class="nav-item" data-view="finance"><span>🏦</span>Finance desk<em id="pendingBadge" class="hidden">0</em></button>
-      </nav>
-      <div class="agents">
-        <div class="side-label">AI agents</div>
-        <div class="agent-row" id="ag-intake"><i></i><div><b>Intake Agent</b><small>Reads every bill</small></div></div>
-        <div class="agent-row" id="ag-build"><i></i><div><b>Claim Builder</b><small>Trips, duplicates, policy</small></div></div>
-        <div class="agent-row" id="ag-audit"><i></i><div><b>Audit Agent</b><small>Authenticity &amp; fraud</small></div></div>
-        <div class="agent-row" id="ag-chat"><i></i><div><b>Chat Assistant</b><small>Answers your questions</small></div></div>
-        <div class="agent-row human"><i></i><div><b>Human approver</b><small>Final decision</small></div></div>
-      </div>
-      <div class="side-foot">
-        <div id="engine" class="engine">…</div>
-        <button id="policyBtn" class="sm">📘 Expense policy</button>
-      </div>
-    </aside>
-
-    <!-- ================= MAIN ================= -->
-    <div class="main">
-      <header class="top">
-        <div class="crumb" id="crumb">My claim</div>
-        <div class="mode" id="modeSwitch" role="tablist" aria-label="Interface mode">
-          <button data-mode="web" class="on" role="tab">🖥️ Web</button>
-          <button data-mode="chat" role="tab">💬 Chat</button>
-        </div>
-        <div class="who"><div class="avatar">AV</div><div><b>Asha Verma</b><small>Demo employee</small></div></div>
-      </header>
-
-      <!-- ===== EMPLOYEE ===== -->
-      <main id="view-employee" class="view">
-        <!-- Web mode -->
-        <section id="mode-web">
-          <ol class="stepper" id="stepper">
-            <li data-step="upload"><b>1</b><span>Drop receipts</span></li>
-            <li data-step="read"><b>2</b><span>Intake Agent</span></li>
-            <li data-step="build"><b>3</b><span>Claim built</span></li>
-            <li data-step="verify"><b>4</b><span>Audit Agent</span></li>
-            <li data-step="decision"><b>5</b><span>Human approval</span></li>
-          </ol>
-
-          <section id="stage-upload" class="stage">
-            <label id="dropzone" class="dropzone">
-              <input id="fileInput" type="file" multiple accept="image/*,application/pdf" hidden />
-              <div class="dz-art"><span>🧾</span><span>📄</span><span>🧾</span></div>
-              <div class="dz-title">Drop your pile of receipts</div>
-              <div class="dz-sub">Photos, scans or PDFs, as many as you like. AI agents read them, build the claim and check every bill. A finance approver signs off. You type nothing.</div>
-              <span class="btn primary lg">Choose files</span>
-            </label>
-            <div class="or"><span>or</span><button id="demoBtn" class="btn">✨ Try 8 sample receipts</button><small>synthetic data · includes a tampered bill</small></div>
-            <div class="features">
-              <div><b>⚡ Seconds, not hours</b><span>Bills read, categorised and grouped into trips automatically</span></div>
-              <div><b>🛡️ Fraud checks</b><span>GSTIN registry, edited amounts, Photoshop traces, double claims</span></div>
-              <div><b>👤 Human in control</b><span>The AI recommends; only a finance approver can approve money</span></div>
-            </div>
-          </section>
-
-          <section id="stage-process" class="stage hidden">
-            <div class="proc card">
-              <div class="proc-head"><div class="spinner"></div><div><div id="procTitle" class="proc-title">Reading receipts…</div><div id="procSub" class="muted"></div></div></div>
-              <div id="procFiles" class="proc-files"></div>
-            </div>
-          </section>
-
-          <section id="stage-decision" class="stage hidden"></section>
-        </section>
-
-        <!-- Chat mode -->
-        <section id="mode-chat" class="hidden">
-          <div class="chat card" id="chatDrop">
-            <div class="chat-msgs" id="chatMsgs"></div>
-            <div class="chips" id="chatChips"></div>
-            <form class="composer" id="composer">
-              <label class="attach" title="Attach receipts">📎<input id="chatFile" type="file" multiple accept="image/*,application/pdf" hidden /></label>
-              <input id="chatInput" autocomplete="off" placeholder="Attach receipts, or ask e.g. “why was the fuel bill rejected?”" />
-              <button class="btn primary" type="submit">Send</button>
-            </form>
-            <div class="drop-overlay">Drop receipts to add them</div>
-          </div>
-        </section>
-      </main>
-
-      <!-- ===== FINANCE ===== -->
-      <main id="view-finance" class="view hidden">
-        <div class="fin-intro">The Audit Agent investigates every bill and recommends. <b>Nothing is paid until a finance approver signs off.</b></div>
-        <div id="finKpis" class="kpis"></div>
-        <div class="card table-card">
-          <table class="fin-table"><thead><tr><th>Claim</th><th>Employee</th><th>Submitted</th><th>Bills</th><th>Amount</th><th>Status</th></tr></thead><tbody id="finRows"></tbody></table>
-        </div>
-        <div id="finDetail"></div>
-      </main>
+<body class="landing">
+  <main class="login">
+    <div class="login-brand"><div class="logo">◆</div><div><b>ClaimPilot</b><small>AI agents for expense reimbursement</small></div></div>
+    <h1>Who's signing in?</h1>
+    <p class="muted">Two separate portals. Employees submit receipts; finance approves. (Demo accounts, no password.)</p>
+    <div class="roles">
+      <a class="role employee" href="/employee">
+        <div class="role-ic">🧾</div>
+        <div class="role-avatar">AV</div>
+        <b>Asha Verma</b>
+        <span>Employee · Product team</span>
+        <ul><li>Drop receipts, nothing to type</li><li>Web or Chat mode</li><li>Track your claim status</li></ul>
+        <em>Continue as employee →</em>
+      </a>
+      <a class="role finance" href="/finance" onclick="sessionStorage.approver='Priya Nair'">
+        <div class="role-ic">🏦</div>
+        <div class="role-avatar">PN</div>
+        <b>Priya Nair</b>
+        <span>Finance approver</span>
+        <ul><li>Claims pre-checked by the Audit Agent</li><li>Evidence for every bill</li><li>Approve, override or reject</li></ul>
+        <em>Continue as finance →</em>
+      </a>
     </div>
-  </div>
-
-  <dialog id="policyDlg"><h3>📘 Expense policy (mock)</h3><ul id="policyList"></ul><form method="dialog"><button class="btn">Close</button></form></dialog>
-  <div id="toast" class="toast hidden"></div>
-  <script src="/app.js" type="module"></script>
+    <p class="hint">Tip for the demo: open the two portals in two browser windows side by side.</p>
+  </main>
 </body>
 </html>

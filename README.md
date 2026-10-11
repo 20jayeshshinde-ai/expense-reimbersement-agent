@@ -107,18 +107,25 @@ copy .env.example .env
 npm start
 ```
 
-Before `npm start`, open `.env` and paste your key: `ANTHROPIC_API_KEY=sk-ant-...`. The `.env` file is git-ignored, so the key is never committed.
+Before `npm start`, open `.env` and paste a key: `GEMINI_API_KEY=...` or `ANTHROPIC_API_KEY=sk-ant-...`. The `.env` file is git-ignored, so the key is never committed.
 
 Open the URL the terminal prints. If port 3000 is busy, it moves to 3001 automatically. The terminal and the top-bar badge show the engine:
 
-- `● Live AI: Claude (claude-opus-5-5)`: real-time mode. Upload any receipt.
+- `● Live AI · Gemini` (or Claude): real-time mode. Upload any receipt.
 - `AI engine: Local (offline)`: there's no key, or the key was rejected. Everything still works on the offline engine.
+
+The app opens on a sign-in page with two separate portals (demo accounts, no password):
+
+| Portal | URL | Who | What they see |
+|---|---|---|---|
+| Employee | `/employee` | Asha Verma | Drop receipts (Web or Chat mode), live agent activity, claim status |
+| Finance | `/finance` | Priya Nair | Approval queue, Audit Agent evidence per bill, approve / override / reject, history |
 
 To try it:
 
-1. Drop your own receipts, or click **run with 8 sample receipts**.
-2. Watch the Audit Agent work.
-3. Open **Finance desk**, enter an approver name, and approve. The employee tab updates on its own.
+1. Open `/employee` in one window and `/finance` in another, side by side.
+2. In the employee portal, drop your own receipts or click **Try 8 sample receipts**. Watch the agents work.
+3. The claim appears in the finance queue automatically. Approve it there, and the employee portal updates on its own.
 
 Other scripts:
 

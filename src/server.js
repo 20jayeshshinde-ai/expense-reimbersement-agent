@@ -20,6 +20,9 @@ fs.mkdirSync(uploadDir, { recursive: true });
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(root, "public")));
+// Separate portals for the two roles.
+app.get("/employee", (_req, res) => res.sendFile(path.join(root, "public", "employee.html")));
+app.get("/finance", (_req, res) => res.sendFile(path.join(root, "public", "finance.html")));
 app.use("/samples", express.static(path.join(root, "samples")));
 
 const upload = multer({
@@ -36,7 +39,7 @@ const getClaim = (req) => {
   return claims.get(sidOf(req));
 };
 
-const SERVER_VERSION = 4; // bump when the API changes; the page checks it
+const SERVER_VERSION = 5; // bump when the API changes; the page checks it
 app.get("/api/config", (_req, res) => res.json({ version: SERVER_VERSION, live: status.claude === "ok", status, engine: engineName(), categories: CATEGORIES, policy: POLICY_SUMMARY }));
 app.post("/api/engine/recheck", async (_req, res) => res.json(await checkClaude()));
 app.get("/api/claim", (req, res) => res.json(evaluate(getClaim(req))));

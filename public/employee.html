@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClaimPilot – Employee</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="role-employee">
+  <div class="app">
+    <aside class="side">
+      <div class="brand"><div class="logo">◆</div><div><b>ClaimPilot</b><small>Employee portal</small></div></div>
+      <nav class="nav">
+        <button class="nav-item active"><span>🧾</span>My claim</button>
+      </nav>
+      <div class="agents">
+        <div class="side-label">Your AI agents</div>
+        <div class="agent-row" id="ag-intake"><i></i><div><b>Intake Agent</b><small>Reads every bill</small></div></div>
+        <div class="agent-row" id="ag-build"><i></i><div><b>Claim Builder</b><small>Trips, duplicates, policy</small></div></div>
+        <div class="agent-row" id="ag-audit"><i></i><div><b>Audit Agent</b><small>Checks authenticity</small></div></div>
+        <div class="agent-row" id="ag-chat"><i></i><div><b>Chat Assistant</b><small>Answers your questions</small></div></div>
+      </div>
+      <div class="side-foot">
+        <div id="engine" class="engine">…</div>
+        <button id="policyBtn" class="sm">📘 Expense policy</button>
+        <a class="sm signout" href="/">↩ Sign out</a>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="top">
+        <div class="crumb">My claim</div>
+        <div class="mode" id="modeSwitch" role="tablist" aria-label="Interface mode">
+          <button data-mode="web" class="on" role="tab">🖥️ Web</button>
+          <button data-mode="chat" role="tab">💬 Chat</button>
+        </div>
+        <div class="who"><div class="avatar">AV</div><div><b>Asha Verma</b><small>Employee · CC-4410</small></div></div>
+      </header>
+
+      <main class="view">
+        <section id="mode-web">
+          <ol class="stepper" id="stepper">
+            <li data-step="upload"><b>1</b><span>Drop receipts</span></li>
+            <li data-step="read"><b>2</b><span>AI reads bills</span></li>
+            <li data-step="build"><b>3</b><span>Claim built</span></li>
+            <li data-step="verify"><b>4</b><span>Checked &amp; submitted</span></li>
+            <li data-step="decision"><b>5</b><span>Finance decision</span></li>
+          </ol>
+
+          <section id="stage-upload" class="stage">
+            <label id="dropzone" class="dropzone">
+              <input id="fileInput" type="file" multiple accept="image/*,application/pdf" hidden />
+              <div class="dz-art"><span>🧾</span><span>📄</span><span>🧾</span></div>
+              <div class="dz-title">Drop your pile of receipts</div>
+              <div class="dz-sub">Photos, scans or PDFs, as many as you like. AI agents read them, build the claim, check every bill and send it to finance. You type nothing.</div>
+              <span class="btn primary lg">Choose files</span>
+            </label>
+            <div class="or"><span>or</span><button id="demoBtn" class="btn">✨ Try 8 sample receipts</button><small>synthetic data · includes a tampered bill</small></div>
+            <div class="features">
+              <div><b>⚡ Seconds, not hours</b><span>Bills read, categorised and grouped into trips automatically</span></div>
+              <div><b>🛡️ Checked before submit</b><span>Duplicates, edited amounts and policy limits caught up front</span></div>
+              <div><b>🔔 Live status</b><span>See the finance decision the moment it's made</span></div>
+            </div>
+          </section>
+
+          <section id="stage-process" class="stage hidden">
+            <div class="proc card">
+              <div class="proc-head"><div class="spinner"></div><div><div id="procTitle" class="proc-title">Reading receipts…</div><div id="procSub" class="muted"></div></div></div>
+              <div id="procFiles" class="proc-files"></div>
+            </div>
+          </section>
+
+          <section id="stage-decision" class="stage hidden"></section>
+        </section>
+
+        <section id="mode-chat" class="hidden">
+          <div class="chat card" id="chatDrop">
+            <div class="chat-msgs" id="chatMsgs"></div>
+            <div class="chips" id="chatChips"></div>
+            <form class="composer" id="composer">
+              <label class="attach" title="Attach receipts">📎<input id="chatFile" type="file" multiple accept="image/*,application/pdf" hidden /></label>
+              <input id="chatInput" autocomplete="off" placeholder="Attach receipts, or ask e.g. “why was the fuel bill rejected?”" />
+              <button class="btn primary" type="submit">Send</button>
+            </form>
+            <div class="drop-overlay">Drop receipts to add them</div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="policyDlg"><h3>📘 Expense policy (mock)</h3><ul id="policyList"></ul><form method="dialog"><button class="btn">Close</button></form></dialog>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/js/employee.js" type="module"></script>
+</body>
+</html>
