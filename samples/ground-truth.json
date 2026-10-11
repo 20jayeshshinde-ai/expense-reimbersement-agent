@@ -1,7 +1,7 @@
 [
   {
     "file": "01_taxi_airport.jpg",
-    "sha256": "7d1d74be1101838664fe481550007ac6c56854df12878aec12aab6e25783cf98",
+    "sha256": "a86492c79a087909505664fe80aff9b8fcc732e803ec1a948446e8bef89e52e0",
     "document_type": "receipt",
     "vendor": "QuickRide Cabs",
     "date": "2026-09-14",
@@ -31,7 +31,7 @@
   },
   {
     "file": "02_flight_bom_blr.pdf",
-    "sha256": "670743d6bb082fcbec93d8e278d55e235a2ef90cc3c2fba422706b3b088a0775",
+    "sha256": "5bc4a10f1774735a58a6c4e7270c51ce047294ff1ac3f9ffaf4d12852205d545",
     "document_type": "invoice",
     "vendor": "SkyJet Airways",
     "date": "2026-09-14",
@@ -61,7 +61,7 @@
   },
   {
     "file": "03_hotel_bengaluru.pdf",
-    "sha256": "acb9394de56a9c64fb66beb32d84f11c04373a3d20c7394f8f990d32423c2612",
+    "sha256": "1238ca61540d0de07205fd07656ca02ad4936cb838c1da58c22f8d4a7a1221df",
     "document_type": "invoice",
     "vendor": "Hotel Orchid Residency",
     "date": "2026-09-16",
@@ -87,7 +87,7 @@
   },
   {
     "file": "04_client_dinner.jpg",
-    "sha256": "4b013d336e846edb0d631b9251f6d4e2b2e3c7db7d0542169043eb52125cf89d",
+    "sha256": "d37af047181c16c9301344d7c75f6036340954247d5604f3942bf1431ff10140",
     "document_type": "receipt",
     "vendor": "Spice Route",
     "date": "2026-09-15",
@@ -100,7 +100,7 @@
     "payment_method": "Card",
     "nights": null,
     "alcohol_amount": 600,
-    "attendees": null,
+    "attendees": 3,
     "description": "Dinner for 3 covers incl. 3 craft beers",
     "line_items": [
       {
@@ -117,7 +117,7 @@
   },
   {
     "file": "05_taxi_airport_again.jpg",
-    "sha256": "89b43b89f5cf87c67bae3a1777b6fce888777df78ccb36bea9c3abd832c90a48",
+    "sha256": "381f93570f134f36d2311072bb4cbc0048c50300a8c2dd8367c395a01c23222c",
     "document_type": "receipt",
     "vendor": "QuickRide Cabs",
     "date": "2026-09-14",
@@ -138,7 +138,7 @@
   },
   {
     "file": "06_stationery_no_date.jpg",
-    "sha256": "da42fb93b8d94d53e38ca09b0bc58d770715d7d56e70989641bef01684263d69",
+    "sha256": "c522f906fba71fb5654ed4a627b4bd8e0aae64b99183cf44088e9735413c7371",
     "document_type": "receipt",
     "vendor": "Stationery Mart",
     "date": null,
@@ -166,7 +166,7 @@
   },
   {
     "file": "07_coffee_already_claimed.jpg",
-    "sha256": "79dfd443565a6e055c800b72463c5377a7e4ca8b66859d24ac1130d785229f08",
+    "sha256": "5879287c2b96efdf8baf7f77cfd0d38a6207037ef1f2ceb6ace173ba68140c1e",
     "document_type": "receipt",
     "vendor": "Brew Bros Cafe",
     "date": "2026-09-03",
@@ -184,5 +184,32 @@
     "line_items": [],
     "confidence": 0.93,
     "low_confidence_fields": []
+  },
+  {
+    "file": "08_fuel_edited.jpg",
+    "sha256": "a94364eada8c25dfa391dca6570818987e6934f3336575aa144a81f915573850",
+    "document_type": "receipt",
+    "vendor": "Highway Fuels",
+    "date": "2026-09-13",
+    "currency": "INR",
+    "total": 5386.5,
+    "tax": null,
+    "category": "fuel_mileage",
+    "city": "Mumbai",
+    "invoice_number": "HF-77120",
+    "payment_method": "Card",
+    "nights": null,
+    "alcohol_amount": null,
+    "attendees": null,
+    "description": "Petrol 32.5 L",
+    "line_items": [
+      {
+        "description": "Petrol 32.50 L",
+        "amount": 3386.5
+      }
+    ],
+    "confidence": 0.9,
+    "low_confidence_fields": [],
+    "tampered": true
   }
 ]

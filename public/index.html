@@ -9,45 +9,56 @@
 <body>
   <header class="top">
     <div class="brand"><span class="logo">◆</span> ClaimPilot <small>Expense &amp; Reimbursement Agent</small></div>
-    <div class="top-right">
-      <span id="engine" class="pill">…</span>
-      <button id="policyBtn" class="ghost">Policy</button>
-      <button id="resetBtn" class="ghost">New claim</button>
-    </div>
+    <nav class="tabs">
+      <button class="tab active" data-view="employee">Employee</button>
+      <button class="tab" data-view="finance">Finance desk</button>
+    </nav>
+    <div class="top-right"><span id="engine" class="pill">…</span><button id="policyBtn" class="ghost">Policy</button></div>
   </header>
 
-  <main class="layout">
-    <!-- Chat column -->
-    <section class="chat" id="dropzone">
-      <div id="messages" class="messages"></div>
-      <div id="questions" class="questions"></div>
-      <form id="composer" class="composer">
-        <label class="attach" title="Add receipts">＋<input id="fileInput" type="file" multiple accept="image/*,application/pdf" hidden /></label>
-        <input id="chatInput" autocomplete="off" placeholder="Drop receipts here, or reply… e.g. “trip was for the Contoso workshop, 3 of us at dinner”" />
-        <button type="submit">Send</button>
-      </form>
-      <div class="drop-overlay">Drop receipts to add them to your claim</div>
+  <!-- ================= EMPLOYEE ================= -->
+  <main id="view-employee" class="view">
+    <ol class="stepper" id="stepper">
+      <li data-step="upload"><b>1</b> Drop receipts</li>
+      <li data-step="read"><b>2</b> Intake Agent</li>
+      <li data-step="build"><b>3</b> Claim built</li>
+      <li data-step="verify"><b>4</b> Audit Agent</li>
+      <li data-step="decision"><b>5</b> Human approval</li>
+    </ol>
+
+    <!-- Stage: upload -->
+    <section id="stage-upload" class="stage">
+      <label id="dropzone" class="dropzone">
+        <input id="fileInput" type="file" multiple accept="image/*,application/pdf" hidden />
+        <div class="dz-icon">🧾</div>
+        <div class="dz-title">Drop all your receipts here</div>
+        <div class="dz-sub">Photos, scans or PDFs, as many as you like. Everything after this is automatic:<br/>the AI reads every bill, builds the claim and verifies authenticity, then a finance approver signs off.</div>
+        <span class="btn primary">Choose files</span>
+      </label>
+      <div class="or">or <button id="demoBtn" class="link">run with 8 sample receipts</button> <small>(synthetic data, includes a tampered bill)</small></div>
     </section>
 
-    <!-- Claim board -->
-    <aside class="board">
-      <div class="summary card">
-        <div class="ring" id="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.9" class="bg"/><circle cx="18" cy="18" r="15.9" class="fg" id="ringFg"/></svg><span id="ringTxt">0%</span></div>
-        <div class="sumtxt">
-          <div class="label">Reimbursable</div>
-          <div class="big" id="sumReimb">₹0</div>
-          <div class="sub" id="sumSub">No receipts yet</div>
-        </div>
-        <button id="submitBtn" class="primary" disabled>Submit claim</button>
-      </div>
-      <div class="chips" id="chips"></div>
-      <div id="groups"></div>
-    </aside>
+    <!-- Stage: processing -->
+    <section id="stage-process" class="stage hidden">
+      <div class="proc-head"><div class="spinner"></div><div><div id="procTitle" class="proc-title">Reading receipts…</div><div id="procSub" class="muted"></div></div></div>
+      <div id="procFiles" class="proc-files"></div>
+    </section>
+
+    <!-- Stage: decision -->
+    <section id="stage-decision" class="stage hidden"></section>
+  </main>
+
+  <!-- ================= FINANCE ================= -->
+  <main id="view-finance" class="view hidden">
+    <div class="fin-wrap">
+      <h2>Finance desk <small class="muted">The AI finance agent verifies every bill and recommends. Nothing is paid until a finance approver signs off.</small></h2>
+      <div id="finKpis" class="kpis"></div>
+      <table class="fin-table"><thead><tr><th>Claim</th><th>Employee</th><th>Submitted</th><th>Bills</th><th>Amount</th><th>Status</th></tr></thead><tbody id="finRows"></tbody></table>
+      <div id="finDetail"></div>
+    </div>
   </main>
 
   <dialog id="policyDlg"><h3>Expense policy (mock)</h3><ul id="policyList"></ul><form method="dialog"><button>Close</button></form></dialog>
-  <dialog id="submitDlg"><div id="submitBody"></div><form method="dialog"><button>Done</button></form></dialog>
-
   <script src="/app.js" type="module"></script>
 </body>
 </html>

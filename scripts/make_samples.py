@@ -61,16 +61,31 @@ def photo(img, angle, blur=0.6, bg=(120, 110, 100)):
     return canvas.filter(ImageFilter.GaussianBlur(blur))
 
 
+CH = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def gstin(state, pan, entity="1"):
+    """Build a synthetic GSTIN with a valid mod-36 checksum."""
+    body = f"{state}{pan}{entity}Z"
+    total = 0
+    for i, c in enumerate(body):
+        p = CH.index(c) * (2 if i % 2 else 1)
+        total += p // 36 + p % 36
+    return body + CH[(36 - total % 36) % 36]
+
+
 L = lambda t, s=22, b=False, a="l": (t, s, b, a)  # noqa: E731
 SEP = L("-" * 52, 18)
 
 samples = []
 
 
-def save(name, img, truth, pdf=False):
+def save(name, img, truth, pdf=False, exif=None):
     path = OUT / name
     if pdf:
         img.save(path, "PDF", resolution=110)
+    elif exif is not None:
+        img.save(path, quality=88, exif=exif)
     else:
         img.save(path, quality=88)
     sha = hashlib.sha256(path.read_bytes()).hexdigest()
@@ -84,7 +99,7 @@ taxi = receipt_image([
     L("From: Andheri West, Mumbai"), L("To: Chhatrapati Shivaji Intl Airport T2"), SEP,
     L("Base fare\tINR 612.00"), L("Airport fee\tINR 120.00"), L("GST 5%\tINR 36.60"),
     L("Rounding\tINR 11.40"), SEP, L("TOTAL PAID\tINR 780.00", 26, True),
-    L("Paid via UPI"), L("GSTIN 27AAAQR0000Z1Z5", 18),
+    L("Paid via UPI"), L(f"GSTIN {gstin('27', 'AAQCQ4821K')}", 18),
 ])
 save("01_taxi_airport.jpg", photo(taxi, 1.6), {
     "document_type": "receipt", "vendor": "QuickRide Cabs", "date": "2026-09-14", "currency": "INR",
@@ -101,7 +116,7 @@ flight = receipt_image([
     L("Invoice No: SJ-INV-2026-551902"), L("Booking date: 02 Sep 2026"),
     L("Passenger: ASHA VERMA (synthetic)"), L("Flight SJ 517  BOM -> BLR"), L("Travel date: 14 Sep 2026  08:40"), SEP,
     L("Base fare\tINR 5,320.00"), L("Airport charges\tINR 820.00"), L("GST\tINR 310.00"), SEP,
-    L("TOTAL\tINR 6,450.00", 26, True), L("Paid by Corporate Card **** 4421"),
+    L("TOTAL\tINR 6,450.00", 26, True), L("Paid by Corporate Card **** 4421"), L(f"GSTIN {gstin('27', 'AAKCS7310M')}", 18),
 ], width=760, paper=(255, 255, 255))
 save("02_flight_bom_blr.pdf", flight, {
     "document_type": "invoice", "vendor": "SkyJet Airways", "date": "2026-09-14", "currency": "INR",
@@ -118,7 +133,7 @@ hotel = receipt_image([
     L("Folio / Invoice: HOR/26/09/3381"), L("Guest: Asha Verma (synthetic)"),
     L("Check-in: 14 Sep 2026   Check-out: 16 Sep 2026"), L("Nights: 2   Room: Deluxe King"), SEP,
     L("Room 2 x 6,270.00\tINR 12,540.00"), L("GST 18% on room\tINR 2,257.20"), L("Rounding\tINR 2.80"), SEP,
-    L("TOTAL\tINR 14,800.00", 26, True), L("Settled: Card **** 4421"), L("GSTIN 29AAAHO0000H1Z2", 18),
+    L("TOTAL\tINR 14,800.00", 26, True), L("Settled: Card **** 4421"), L(f"GSTIN {gstin('29', 'AABFH2290P')}", 18),
 ], width=760, paper=(255, 255, 255))
 save("03_hotel_bengaluru.pdf", hotel, {
     "document_type": "invoice", "vendor": "Hotel Orchid Residency", "date": "2026-09-16", "currency": "INR",
@@ -136,13 +151,13 @@ dinner = receipt_image([
     L("Paneer Tikka x2\t640.00"), L("Dal Makhani\t380.00"), L("Butter Naan x6\t360.00"),
     L("Veg Biryani x2\t720.00"), L("Craft Beer x3\t600.00"), L("Fresh Lime Soda x2\t240.00"), SEP,
     L("Sub Total\t2,940.00"), L("CGST 2.5% + SGST 2.5%\t147.00"), L("Service charge\t153.00"), SEP,
-    L("GRAND TOTAL\tINR 3,240.00", 26, True), L("Card **** 4421"),
+    L("GRAND TOTAL\tINR 3,240.00", 26, True), L("Card **** 4421"), L(f"GSTIN {gstin('29', 'ABMFS6631Q')}", 18),
 ])
 save("04_client_dinner.jpg", photo(dinner, -1.4, blur=0.8), {
     "document_type": "receipt", "vendor": "Spice Route", "date": "2026-09-15", "currency": "INR",
     "total": 3240, "tax": 147, "category": "client_entertainment", "city": "Bengaluru",
     "invoice_number": "4471", "payment_method": "Card", "nights": None, "alcohol_amount": 600,
-    "attendees": None, "description": "Dinner for 3 covers incl. 3 craft beers",
+    "attendees": 3, "description": "Dinner for 3 covers incl. 3 craft beers",
     "line_items": [{"description": "Food & soft drinks", "amount": 2340}, {"description": "Craft Beer x3", "amount": 600}],
     "confidence": 0.88, "low_confidence_fields": [],
 })
@@ -161,7 +176,7 @@ stationery = receipt_image([
     L("Stationery Mart", 32, True, "c"), L("Lower Parel, Mumbai", 20, False, "c"), SEP,
     L("Cash Memo 00912"), L("Date: ____________"), SEP,
     L("A4 Paper Ream x2\t560.00"), L("Whiteboard Markers\t240.00"), L("Spiral Notebooks x5\t350.00"), SEP,
-    L("TOTAL\tINR 1,150.00", 26, True), L("Cash"),
+    L("TOTAL\tINR 1,150.00", 26, True), L("Cash"), L(f"GSTIN {gstin('27', 'AFDPS9012L')}", 18),
 ])
 save("06_stationery_no_date.jpg", photo(stationery, 1.0), {
     "document_type": "receipt", "vendor": "Stationery Mart", "date": None, "currency": "INR",
@@ -177,7 +192,7 @@ coffee = receipt_image([
     L("Brew Bros Cafe", 32, True, "c"), L("BKC, Mumbai", 20, False, "c"), SEP,
     L("Order #A-2231"), L("03-09-2026 16:45"), SEP,
     L("Cappuccino x2\t360.00"), L("Banana Bread\t60.00"), SEP,
-    L("TOTAL\tINR 420.00", 26, True), L("UPI"),
+    L("TOTAL\tINR 420.00", 26, True), L("UPI"), L(f"GSTIN {gstin('27', 'AAJFB5518C')}", 18),
 ])
 save("07_coffee_already_claimed.jpg", photo(coffee, -1.5), {
     "document_type": "receipt", "vendor": "Brew Bros Cafe", "date": "2026-09-03", "currency": "INR",
@@ -186,6 +201,36 @@ save("07_coffee_already_claimed.jpg", photo(coffee, -1.5), {
     "attendees": None, "description": "2 cappuccinos and banana bread",
     "line_items": [], "confidence": 0.93, "low_confidence_fields": [],
 })
+
+# 8. Tampered fuel bill: total edited from 3,386.50 to 5,386.50, GSTIN checksum broken,
+#    and the JPEG carries an image-editor "Software" EXIF tag.
+good = gstin("27", "AACCH1180D")
+bad = good[:9] + ("7" if good[9] != "7" else "3") + good[10:14] + ("X" if good[14] != "X" else "Y")
+fuel = receipt_image([
+    L("Highway Fuels", 32, True, "c"), L("NH-48, Thane, Mumbai", 20, False, "c"), SEP,
+    L("Receipt No: HF-77120"), L("Date: 13/09/2026  19:22"), SEP,
+    L("Petrol 32.50 L x 104.20\t3,386.50"), SEP,
+    L("TOTAL\tINR 5,386.50", 26, True), L("Card **** 4421"), L(f"GSTIN {bad}", 18),
+])
+exif = Image.Exif()
+exif[0x0131] = "Adobe Photoshop 25.0 (Windows)"
+save("08_fuel_edited.jpg", photo(fuel, 0.8), {
+    "document_type": "receipt", "vendor": "Highway Fuels", "date": "2026-09-13", "currency": "INR",
+    "total": 5386.5, "tax": None, "category": "fuel_mileage", "city": "Mumbai",
+    "invoice_number": "HF-77120", "payment_method": "Card", "nights": None, "alcohol_amount": None,
+    "attendees": None, "description": "Petrol 32.5 L", "line_items": [{"description": "Petrol 32.50 L", "amount": 3386.5}],
+    "confidence": 0.9, "low_confidence_fields": [], "tampered": True,
+}, exif=exif)
+
+registry = {
+    "QuickRide Cabs": gstin("27", "AAQCQ4821K"), "SkyJet Airways": gstin("27", "AAKCS7310M"),
+    "Hotel Orchid Residency": gstin("29", "AABFH2290P"), "Spice Route": gstin("29", "ABMFS6631Q"),
+    "Stationery Mart": gstin("27", "AFDPS9012L"), "Brew Bros Cafe": gstin("27", "AAJFB5518C"),
+    "Highway Fuels": good,
+}
+(OUT.parent / "src" / "data").mkdir(exist_ok=True)
+(OUT.parent / "src" / "data" / "gst-registry.json").write_text(json.dumps(
+    [{"gstin": g, "legalName": n, "status": "Active"} for n, g in registry.items()], indent=2))
 
 (OUT / "ground-truth.json").write_text(json.dumps(samples, indent=2))
 print(f"Wrote {len(samples)} synthetic receipts to {OUT}")

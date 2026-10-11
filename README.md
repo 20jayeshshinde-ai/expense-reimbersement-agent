@@ -1,80 +1,101 @@
 # ClaimPilot – Expense & Reimbursement Agent
 
-An AI-native reimbursement assistant you use through chat. Drop in a pile of receipts (phone photos, scans, PDFs) and it does the claim work: reads each document, groups expenses into trips, checks the policy, catches duplicates, asks **only** the questions it can't answer itself, and hands a submission-ready claim to a (mock) finance system.
+A multi-agent reimbursement system. The employee drops a pile of receipts (photos, scans, PDFs) and does nothing else:
+
+- an **Intake Agent** reads every bill and builds the claim
+- an **Audit Agent** (Claude with tools) investigates each bill for authenticity and policy
+- a **human finance approver** makes the final call
 
 > All data in this repo is **synthetic**. Vendors, people, invoice numbers and the policy are made up. No company or personal data is used.
 
 ## The problem
 
-Filing a reimbursement claim is slow, error-prone admin work:
-
-| Manual step | Typical pain |
+| Today (manual) | Pain |
 |---|---|
-| Collect and photograph bills | Receipts get lost, photographed twice, or are unreadable |
-| Type in vendor, date, amount, tax | ~3–6 min per receipt, with typos |
-| Pick a category / GL code | Inconsistent, so finance has to recategorise |
-| Check what's allowed | Employees don't know the hotel cap or the alcohol rule, and claims bounce back |
-| Explain purpose and attendees | Asked again for every line item |
-| Finance review | Reviewers re-check the same rules and hunt for duplicates by hand |
+| Employee collects, types and categorises every bill | 3–6 min per receipt, typos, wrong categories |
+| Employee guesses what the policy allows | Claims bounce back and forth |
+| Finance re-checks every line by hand | Slow, and edited or duplicate bills still slip through |
 
-## What ClaimPilot does
+## How it works: three agents and one human
 
-1. **Understands messy documents.** Claude reads each photo or PDF (vision plus native PDF input) and returns schema-validated JSON: vendor, date, currency, total, tax, invoice no., payment method, category, city, nights, alcohol line items, cover count, line items, and per-field confidence. If a field is missing or illegible it comes back as `null`; the model is told never to guess.
-2. **Groups expenses.** Flights, rail and hotels anchor a **trip** (for example "Trip to Bengaluru, 14–16 Sep"). Nearby-dated taxis and meals are attached to that trip. Everything else goes under "Local & other".
-3. **Checks policy with deterministic rules.** These are coded rules, not LLM judgement: the submission window, metro and non-metro hotel nightly caps, meal and office-supply caps, the per-head entertainment cap, alcohol exclusion, FX conversion and the manager-approval threshold. The reimbursable amount is recalculated after every change.
-4. **Catches duplicates** at three levels:
-   - the same file uploaded twice
-   - the same receipt photographed twice (matching vendor + invoice no., or vendor + date + amount)
-   - a receipt **already reimbursed** in a previous claim, checked against the mock finance system's history
-5. **Asks only the questions it needs:**
-   - one *purpose* question per trip, not one per receipt
-   - attendee count and names only where policy requires them
-   - a field value only when it really couldn't be read
-   - a yes/no for each suspected duplicate
+```
+ Employee drops receipts
+        │
+        ▼
+ ┌─────────────────────┐  Claude vision + native PDF (live) · neural OCR + parser (offline fallback)
+ │ 1. Intake Agent     │  Reads every bill: vendor, date, total, tax, GSTIN, invoice no., line items,
+ └─────────┬───────────┘  city, nights, alcohol, covers. Also flags visual tampering (Claude mode).
+           ▼
+ ┌─────────────────────┐  Groups bills into trips, removes re-photographed duplicates, fills in purpose,
+ │ 2. Claim Builder    │  category and GL code, applies policy caps (hotel, meals, alcohol, supplies).
+ └─────────┬───────────┘  Zero questions to the employee.
+           ▼
+ ┌─────────────────────┐  Autonomous Claude tool-use agent. It decides which checks to run on each bill:
+ │ 3. Audit Agent      │  verify_gstin · check_arithmetic · check_metadata_tampering · check_claim_history
+ │   (Claude + tools)  │  · check_policy · get_bill_details. Then it calls record_verdict per bill
+ └─────────┬───────────┘  (approve/reject, risk, reason) and finish_review. Each step streams live to the UI.
+           ▼
+ ┌─────────────────────┐  The finance desk sees the agent's recommendation and evidence for every bill.
+ │ 4. Human approver   │  The approver can override any bill, then approves or rejects. This is the only
+ └─────────────────────┘  way money is approved. The employee's screen updates automatically.
+```
 
-   Answer by tapping a suggestion, or type one free-text message like *"trip was for the Contoso workshop, 3 of us at dinner with R. Mehta"*. Claude maps that message onto the open questions.
-6. **Tracks status.** Every item is ✅ ready, ⚠️ review (policy adjustment or probable duplicate) or ⛔ blocked (missing data, already claimed, too old). A progress ring and a "N to go" button show how close the claim is to submittable.
-7. **Submits** a clean payload (GL codes, reimbursable amounts, policy notes, receipt hashes for audit) to **FinanceHub**, a mock corporate reimbursement API. You get back a claim ID and an approval route.
+**Real-time vs demo.**
+- **Live mode:** with `ANTHROPIC_API_KEY` in `.env`, both the Intake Agent and the Audit Agent run on Claude, so any real receipt you upload is read and audited live.
+- **Offline mode:** used when there's no key or Claude is unreachable. It runs neural OCR plus a rule-based audit agent with the same tools, so the demo always works.
 
-### The demo set (7 synthetic receipts)
+The badge in the top bar shows which engine is active.
 
-| File | What it demonstrates |
+### Authenticity checks (Audit Agent tools)
+
+| Tool | What it catches |
 |---|---|
-| `01_taxi_airport.jpg` | Tilted phone photo; cab to the airport, attached to the trip |
-| `02_flight_bom_blr.pdf` | PDF e-ticket; anchors "Trip to Bengaluru" |
-| `03_hotel_bengaluru.pdf` | ₹6,270/night against the ₹6,000 metro cap, so ₹540 is deducted automatically |
-| `04_client_dinner.jpg` | Client entertainment: asks for attendees, ₹600 of beer is excluded |
-| `05_taxi_airport_again.jpg` | Second photo of receipt 01, flagged as a probable duplicate |
-| `06_stationery_no_date.jpg` | Date torn off: asks for just that one field |
-| `07_coffee_already_claimed.jpg` | Already paid in claim `EXP-2026-0412`, so it's blocked |
+| `verify_gstin` | Bad GSTIN checksum or state code, or a GSTIN registered to a different business (checked against a mock GST registry) |
+| `check_arithmetic` | Printed line items + tax + charges ≠ printed total, a classic edited-amount fraud |
+| `check_metadata_tampering` | EXIF/PDF metadata from Photoshop, Canva, PDF editors, etc., plus visual anomalies from Claude vision |
+| `check_claim_history` | The same bill already reimbursed in an earlier claim |
+| `check_policy` | Missing date or amount, outside the 60-day window, future dates, policy caps |
 
-Result: **7 receipts → 7 one-tap questions → ₹23,020 ready to submit** (₹3,400 correctly not reimbursed).
+### The demo set (8 synthetic receipts)
+
+| File | What happens |
+|---|---|
+| `01_taxi_airport.jpg` | Tilted phone photo, read and attached to the Bengaluru trip ✅ |
+| `02_flight_bom_blr.pdf` | Scanned PDF read by OCR; anchors "Trip to Bengaluru" ✅ |
+| `03_hotel_bengaluru.pdf` | ₹7,400/night vs the ₹6,000 metro cap, so ₹2,800 is deducted ✅ |
+| `04_client_dinner.jpg` | 3 covers read from the bill; ₹600 of beer deducted ✅ |
+| `05_taxi_airport_again.jpg` | Re-photographed copy of receipt 01, removed automatically 🔁 |
+| `06_stationery_no_date.jpg` | Date missing, flagged ⛔ |
+| `07_coffee_already_claimed.jpg` | Already reimbursed in EXP-2026-0412, flagged ⛔ |
+| `08_fuel_edited.jpg` | **Tampered:** total edited from ₹3,386.50 to ₹5,386.50, broken GSTIN, Photoshop EXIF tag. Flagged ⛔ |
+
+Result: **8 receipts → ₹21,870 recommended and ₹6,957 flagged → a finance approver signs off.** The employee does nothing manually.
 
 ## Business impact (estimates to validate in a pilot)
 
-- **Employee time:** about 5–6 min per receipt drops to under 1 min. For 15 receipts a month across 1,000 travelling employees, that is roughly **1,250 hours saved a month**. The UI shows a running "min saved" counter.
-- **First-time-right claims:** policy is applied *before* submission, so fewer claims bounce back from finance.
-- **Leakage prevention:** cross-claim duplicate detection and automatic cap and alcohol deductions stop over-payment before it happens.
-- **Finance review effort:** every line arrives categorised with a GL code, a purpose, attendees, policy notes and a receipt hash, so reviewers handle exceptions instead of re-checking every line.
-- **KPIs to track:** time from first upload to submit, questions per claim, extraction field accuracy (`npm run eval`), bounce-back rate, duplicate and over-cap value caught.
+- **Employee time:** about 5 min per receipt drops to 0. For 15 receipts a month across 1,000 employees, that's roughly 1,250 hours saved a month.
+- **Finance time:** the approver reviews a pre-investigated claim with evidence attached, instead of re-checking every line.
+- **Fraud and leakage:** edited amounts, fake or mismatched GSTINs, double claims and over-cap spend are caught before payout.
+- **Control:** the AI never pays anyone. Every approval has a named human and a complete audit trail, including AI overrides.
+- **KPIs:** time from receipt to decision, flagged value, approver override rate, extraction accuracy (`npm run eval`).
 
 ## Architecture
 
 ```
-Browser (chat + live claim board)          public/
-   │  drag-drop / paste / pick files
-   ▼
-Express API                                src/server.js
-   ├─ Extractor (Claude vision + PDF)      src/extractor.js   → schema-validated JSON (Zod structured outputs)
-   ├─ Chat interpreter (Claude)            src/extractor.js   → free text → field updates on open questions
-   ├─ Claim engine (deterministic)         src/claim.js       → grouping, duplicates, policy, questions, readiness
-   ├─ Policy as data                       src/policy.js      → caps, categories, GL codes, FX (mock)
-   └─ FinanceHub mock                      src/mockFinance.js → claim history + submit endpoint
+public/                     Employee view (drop → live agent log → status) + Finance desk (approve/override)
+src/server.js               Express API; SSE stream of Audit Agent events
+src/extractor.js            Intake Agent: Claude vision/PDF structured extraction, local fallback, key check
+src/localAI.js              Offline engine: Tesseract neural OCR (bundled model) + receipt parser
+src/claim.js                Claim builder: trips, duplicates, purpose, policy caps
+src/auditAgent.js           Audit Agent: Claude tool-use loop + offline rule-based agent, same tools
+src/forensics.js            GSTIN checksum, OCR repair, EXIF/PDF editor traces, arithmetic reconciliation
+src/financeAgent.js         Human approval step (final decision, overrides, audit trail)
+src/mockFinance.js          Mock "FinanceHub" reimbursement system (claim history, approval queue)
+src/policy.js               Policy as data: caps, categories, GL codes, FX
+src/data/gst-registry.json  Mock GST registry for the synthetic vendors
 ```
 
-**Design principle: the AI reads, the rules decide.** The LLM does perception: turning pixels into fields and free text into answers. Compliance, amounts and readiness are computed by plain, auditable code. That keeps decisions explainable and lets finance change the policy without touching prompts.
-
-Model: `claude-opus-5-5` by default (override with `CLAUDE_MODEL`). Extraction uses structured outputs (`output_config.format`) at low effort for speed, with server-side refusal fallback turned on.
+**Design principle: agents investigate, rules compute, humans decide.** Claude reads the documents and runs the investigation. Money is calculated by plain, auditable code. Only a person can approve a payout.
 
 ## Run it
 
@@ -82,44 +103,49 @@ Requires Node 20+.
 
 ```bash
 npm install
+copy .env.example .env
 npm start
 ```
 
-Open http://localhost:3000 and click **Try with 7 sample receipts**, or drop your own files.
+Before `npm start`, open `.env` and paste your key: `ANTHROPIC_API_KEY=sk-ant-...`. The `.env` file is git-ignored, so the key is never committed.
 
-- **Offline demo mode (default, no key):** the bundled samples are recognised from their SHA-256 hash against `samples/ground-truth.json`. This mode doesn't call the AI, so the full flow can be demoed with no network or key. Any other file comes back as an empty item, and the assistant asks you for the details.
-- **Live AI mode:** set `ANTHROPIC_API_KEY` (see `.env.example`). Any receipt you upload is then read by Claude, and free-text chat answers are understood.
+Open the URL the terminal prints. If port 3000 is busy, it moves to 3001 automatically. The terminal and the top-bar badge show the engine:
 
-```bash
-ANTHROPIC_API_KEY=sk-ant-... npm start
-```
+- `● Live AI: Claude (claude-opus-5-5)`: real-time mode. Upload any receipt.
+- `AI engine: Local (offline)`: there's no key, or the key was rejected. Everything still works on the offline engine.
+
+To try it:
+
+1. Drop your own receipts, or click **run with 8 sample receipts**.
+2. Watch the Audit Agent work.
+3. Open **Finance desk**, enter an approver name, and approve. The employee tab updates on its own.
 
 Other scripts:
 
 ```bash
-npm run samples   # regenerate the synthetic receipts (needs Python + Pillow)
-npm run eval      # live extraction accuracy vs ground truth (needs API key)
+npm run samples   # regenerate the synthetic receipts (Python + Pillow)
+npm run eval      # live Claude extraction accuracy vs ground truth (needs API key)
 ```
 
-Set `DEMO_TODAY=2026-10-11` to pin "today" so the 60-day submission-window check gives reproducible results with the sample dates.
+Add `DEMO_TODAY=2026-10-11` to `.env` so the sample dates stay inside the 60-day submission window.
 
-## API (for integration)
+## API
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/upload` | multipart `files[]`: extract and add to the claim |
-| `POST` | `/api/demo` | load the bundled synthetic samples |
-| `GET` | `/api/claim` | full evaluated claim state (items, groups, questions, totals, readiness) |
-| `POST` | `/api/answer` | `{target, field, value}`: answer a question or edit a field |
-| `POST` | `/api/chat` | `{message}`: free-text answer, interpreted by Claude |
-| `POST` | `/api/submit` | submit to the mock FinanceHub (only when ready) |
-| `GET` | `/api/finance/claims` | mock finance system's claim list |
+| `POST` | `/api/upload` | multipart `files[]`: the Intake Agent reads them and the claim is built |
+| `POST` | `/api/demo` | same, using the bundled synthetic samples |
+| `GET` | `/api/submit/stream?sid=` | runs the Audit Agent; server-sent events: `agent`, `thought`, `tool`, `verdict`, `done` |
+| `GET` | `/api/claim/status` | employee's claim status (pending approval / decided) |
+| `GET` | `/api/finance/claims` | finance queue with agent recommendations and evidence |
+| `POST` | `/api/finance/claims/:id/decide` | `{approver, action, lines, comment}`: the human decision (the only approval path) |
+| `GET` | `/api/config` | active AI engine and Claude connection status |
 
-Each browser tab sends an `x-session` header, so its claim is isolated. State is in memory: this is a prototype.
+State is held in memory; this is a prototype.
 
 ## Next steps
 
-- Corporate-card feed matching (auto-attach card transactions, flag missing receipts)
-- WhatsApp / Teams bot front-end on the same API
-- Per-grade policy, multi-currency per diems, mileage from maps
-- Persistent store, SSO, manager approval UI, and a real ERP connector in place of FinanceHub
+- Corporate-card feed matching (auto-attach transactions, flag missing receipts)
+- WhatsApp / Teams intake on the same API
+- Real GST portal lookup in place of the mock registry
+- Persistent store, SSO, multi-level approval chains, and an ERP connector in place of FinanceHub

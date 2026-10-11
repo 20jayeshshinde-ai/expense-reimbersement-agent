@@ -1,0 +1,37 @@
+[
+  {
+    "gstin": "27AAQCQ4821K1ZW",
+    "legalName": "QuickRide Cabs",
+    "status": "Active"
+  },
+  {
+    "gstin": "27AAKCS7310M1ZY",
+    "legalName": "SkyJet Airways",
+    "status": "Active"
+  },
+  {
+    "gstin": "29AABFH2290P1ZX",
+    "legalName": "Hotel Orchid Residency",
+    "status": "Active"
+  },
+  {
+    "gstin": "29ABMFS6631Q1Z6",
+    "legalName": "Spice Route",
+    "status": "Active"
+  },
+  {
+    "gstin": "27AFDPS9012L1Z3",
+    "legalName": "Stationery Mart",
+    "status": "Active"
+  },
+  {
+    "gstin": "27AAJFB5518C1ZP",
+    "legalName": "Brew Bros Cafe",
+    "status": "Active"
+  },
+  {
+    "gstin": "27AACCH1180D1Z0",
+    "legalName": "Highway Fuels",
+    "status": "Active"
+  }
+]
