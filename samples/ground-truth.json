@@ -1,0 +1,188 @@
+[
+  {
+    "file": "01_taxi_airport.jpg",
+    "sha256": "7d1d74be1101838664fe481550007ac6c56854df12878aec12aab6e25783cf98",
+    "document_type": "receipt",
+    "vendor": "QuickRide Cabs",
+    "date": "2026-09-14",
+    "currency": "INR",
+    "total": 780,
+    "tax": 36.6,
+    "category": "taxi_rideshare",
+    "city": "Mumbai",
+    "invoice_number": "QR-88213-MUM",
+    "payment_method": "UPI",
+    "nights": null,
+    "alcohol_amount": null,
+    "attendees": null,
+    "description": "Cab from Andheri West to Mumbai airport T2",
+    "line_items": [
+      {
+        "description": "Base fare",
+        "amount": 612
+      },
+      {
+        "description": "Airport fee",
+        "amount": 120
+      }
+    ],
+    "confidence": 0.95,
+    "low_confidence_fields": []
+  },
+  {
+    "file": "02_flight_bom_blr.pdf",
+    "sha256": "670743d6bb082fcbec93d8e278d55e235a2ef90cc3c2fba422706b3b088a0775",
+    "document_type": "invoice",
+    "vendor": "SkyJet Airways",
+    "date": "2026-09-14",
+    "currency": "INR",
+    "total": 6450,
+    "tax": 310,
+    "category": "travel_air",
+    "city": "Bengaluru",
+    "invoice_number": "SJ-INV-2026-551902",
+    "payment_method": "Card",
+    "nights": null,
+    "alcohol_amount": null,
+    "attendees": null,
+    "description": "Flight SJ 517 Mumbai to Bengaluru",
+    "line_items": [
+      {
+        "description": "Base fare",
+        "amount": 5320
+      },
+      {
+        "description": "Airport charges",
+        "amount": 820
+      }
+    ],
+    "confidence": 0.97,
+    "low_confidence_fields": []
+  },
+  {
+    "file": "03_hotel_bengaluru.pdf",
+    "sha256": "acb9394de56a9c64fb66beb32d84f11c04373a3d20c7394f8f990d32423c2612",
+    "document_type": "invoice",
+    "vendor": "Hotel Orchid Residency",
+    "date": "2026-09-16",
+    "currency": "INR",
+    "total": 14800,
+    "tax": 2257.2,
+    "category": "hotel",
+    "city": "Bengaluru",
+    "invoice_number": "HOR/26/09/3381",
+    "payment_method": "Card",
+    "nights": 2,
+    "alcohol_amount": null,
+    "attendees": null,
+    "description": "2 nights, Deluxe King, 14-16 Sep",
+    "line_items": [
+      {
+        "description": "Room x2 nights",
+        "amount": 12540
+      }
+    ],
+    "confidence": 0.96,
+    "low_confidence_fields": []
+  },
+  {
+    "file": "04_client_dinner.jpg",
+    "sha256": "4b013d336e846edb0d631b9251f6d4e2b2e3c7db7d0542169043eb52125cf89d",
+    "document_type": "receipt",
+    "vendor": "Spice Route",
+    "date": "2026-09-15",
+    "currency": "INR",
+    "total": 3240,
+    "tax": 147,
+    "category": "client_entertainment",
+    "city": "Bengaluru",
+    "invoice_number": "4471",
+    "payment_method": "Card",
+    "nights": null,
+    "alcohol_amount": 600,
+    "attendees": null,
+    "description": "Dinner for 3 covers incl. 3 craft beers",
+    "line_items": [
+      {
+        "description": "Food & soft drinks",
+        "amount": 2340
+      },
+      {
+        "description": "Craft Beer x3",
+        "amount": 600
+      }
+    ],
+    "confidence": 0.88,
+    "low_confidence_fields": []
+  },
+  {
+    "file": "05_taxi_airport_again.jpg",
+    "sha256": "89b43b89f5cf87c67bae3a1777b6fce888777df78ccb36bea9c3abd832c90a48",
+    "document_type": "receipt",
+    "vendor": "QuickRide Cabs",
+    "date": "2026-09-14",
+    "currency": "INR",
+    "total": 780,
+    "tax": 36.6,
+    "category": "taxi_rideshare",
+    "city": "Mumbai",
+    "invoice_number": "QR-88213-MUM",
+    "payment_method": "UPI",
+    "nights": null,
+    "alcohol_amount": null,
+    "attendees": null,
+    "description": "Cab from Andheri West to Mumbai airport T2",
+    "line_items": [],
+    "confidence": 0.9,
+    "low_confidence_fields": []
+  },
+  {
+    "file": "06_stationery_no_date.jpg",
+    "sha256": "da42fb93b8d94d53e38ca09b0bc58d770715d7d56e70989641bef01684263d69",
+    "document_type": "receipt",
+    "vendor": "Stationery Mart",
+    "date": null,
+    "currency": "INR",
+    "total": 1150,
+    "tax": null,
+    "category": "office_supplies",
+    "city": "Mumbai",
+    "invoice_number": "00912",
+    "payment_method": "Cash",
+    "nights": null,
+    "alcohol_amount": null,
+    "attendees": null,
+    "description": "Paper, markers and notebooks",
+    "line_items": [
+      {
+        "description": "A4 Paper Ream x2",
+        "amount": 560
+      }
+    ],
+    "confidence": 0.85,
+    "low_confidence_fields": [
+      "date"
+    ]
+  },
+  {
+    "file": "07_coffee_already_claimed.jpg",
+    "sha256": "79dfd443565a6e055c800b72463c5377a7e4ca8b66859d24ac1130d785229f08",
+    "document_type": "receipt",
+    "vendor": "Brew Bros Cafe",
+    "date": "2026-09-03",
+    "currency": "INR",
+    "total": 420,
+    "tax": null,
+    "category": "meals",
+    "city": "Mumbai",
+    "invoice_number": "A-2231",
+    "payment_method": "UPI",
+    "nights": null,
+    "alcohol_amount": null,
+    "attendees": null,
+    "description": "2 cappuccinos and banana bread",
+    "line_items": [],
+    "confidence": 0.93,
+    "low_confidence_fields": []
+  }
+]

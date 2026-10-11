@@ -1,0 +1,25 @@
+{
+  "name": "expense-reimbursement-agent",
+  "version": "1.0.0",
+  "description": "AI-native expense & reimbursement assistant: drop receipts, get a submission-ready claim",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/server.js",
+    "samples": "python scripts/make_samples.py",
+    "eval": "node scripts/eval-extraction.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "express": "^5.3.0",
+    "multer": "^2.4.0",
+    "zod": "^4.6.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

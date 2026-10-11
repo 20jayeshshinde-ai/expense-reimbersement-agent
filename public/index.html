@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClaimPilot – Expense & Reimbursement Agent</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">◆</span> ClaimPilot <small>Expense &amp; Reimbursement Agent</small></div>
+    <div class="top-right">
+      <span id="engine" class="pill">…</span>
+      <button id="policyBtn" class="ghost">Policy</button>
+      <button id="resetBtn" class="ghost">New claim</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Chat column -->
+    <section class="chat" id="dropzone">
+      <div id="messages" class="messages"></div>
+      <div id="questions" class="questions"></div>
+      <form id="composer" class="composer">
+        <label class="attach" title="Add receipts">＋<input id="fileInput" type="file" multiple accept="image/*,application/pdf" hidden /></label>
+        <input id="chatInput" autocomplete="off" placeholder="Drop receipts here, or reply… e.g. “trip was for the Contoso workshop, 3 of us at dinner”" />
+        <button type="submit">Send</button>
+      </form>
+      <div class="drop-overlay">Drop receipts to add them to your claim</div>
+    </section>
+
+    <!-- Claim board -->
+    <aside class="board">
+      <div class="summary card">
+        <div class="ring" id="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.9" class="bg"/><circle cx="18" cy="18" r="15.9" class="fg" id="ringFg"/></svg><span id="ringTxt">0%</span></div>
+        <div class="sumtxt">
+          <div class="label">Reimbursable</div>
+          <div class="big" id="sumReimb">₹0</div>
+          <div class="sub" id="sumSub">No receipts yet</div>
+        </div>
+        <button id="submitBtn" class="primary" disabled>Submit claim</button>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div id="groups"></div>
+    </aside>
+  </main>
+
+  <dialog id="policyDlg"><h3>Expense policy (mock)</h3><ul id="policyList"></ul><form method="dialog"><button>Close</button></form></dialog>
+  <dialog id="submitDlg"><div id="submitBody"></div><form method="dialog"><button>Done</button></form></dialog>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
