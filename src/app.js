@@ -80,12 +80,6 @@ app.post("/api/demo", async (req, res) => {
   res.json({ report, claim: evaluate(getClaim(req)) });
 });
 
-app.post("/api/item/:id/exclude", (req, res) => {
-  const claim = getClaim(req);
-  claim.items = claim.items.filter((i) => i.id !== req.params.id);
-  res.json({ claim: evaluate(claim) });
-});
-
 // Employee submits → Audit Agent investigates every bill (streamed live over SSE) → claim waits for a human approver.
 app.get("/api/submit/stream", async (req, res) => {
   const claim = claims.get(String(req.query.sid || "")) || null;

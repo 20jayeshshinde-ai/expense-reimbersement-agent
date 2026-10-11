@@ -32,9 +32,6 @@ export const POLICY = {
   entertainmentPerHeadCap: 1500,
   officeSuppliesCap: 2000,
   alcoholReimbursable: false,
-  // Categories where the employee must state a business purpose (asked once per trip / group).
-  purposeRequired: new Set(["client_entertainment", "office_supplies", "software_subscriptions", "training", "other", "travel_air", "hotel"]),
-  attendeesRequired: new Set(["client_entertainment"]),
   managerApprovalAbove: 25000,
 };
 
@@ -42,8 +39,8 @@ export const POLICY_SUMMARY = [
   `Submit within ${POLICY.submissionWindowDays} days of the expense date.`,
   `Hotels: up to ₹${POLICY.hotelNightlyCap.metro.toLocaleString("en-IN")}/night in metro cities, ₹${POLICY.hotelNightlyCap.other.toLocaleString("en-IN")}/night elsewhere.`,
   `Meals (self): up to ₹${POLICY.mealsPerReceiptCap.toLocaleString("en-IN")} per receipt.`,
-  `Client entertainment: up to ₹${POLICY.entertainmentPerHeadCap.toLocaleString("en-IN")} per head; attendees and purpose required; alcohol not reimbursable.`,
-  `Office supplies: up to ₹${POLICY.officeSuppliesCap.toLocaleString("en-IN")} per receipt with a business purpose.`,
+  `Client entertainment: up to ₹${POLICY.entertainmentPerHeadCap.toLocaleString("en-IN")} per head; alcohol not reimbursable.`,
+  `Office supplies: up to ₹${POLICY.officeSuppliesCap.toLocaleString("en-IN")} per receipt.`,
   `Claims above ₹${POLICY.managerApprovalAbove.toLocaleString("en-IN")} route to manager approval.`,
 ];
 

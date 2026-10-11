@@ -1,8 +1,8 @@
 {
   "name": "expense-reimbursement-agent",
   "version": "1.0.0",
-  "description": "AI-native expense & reimbursement assistant: drop receipts, get a submission-ready claim",
-  "main": "index.js",
+  "description": "ClaimPilot: multi-agent AI expense & reimbursement assistant (receipts to approval-ready claim)",
+  "main": "src/server.js",
   "scripts": {
     "test": "node --test --test-concurrency=1 \"test/**/*.test.js\"",
     "start": "node src/server.js",
@@ -10,9 +10,15 @@
     "eval": "node scripts/eval-extraction.js",
     "coverage": "node --test --test-concurrency=1 --experimental-test-coverage \"test/**/*.test.js\""
   },
-  "keywords": [],
+  "keywords": [
+    "ai-agents",
+    "expense",
+    "reimbursement",
+    "gemini",
+    "ocr"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
