@@ -9,7 +9,7 @@ import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 
 const provider = (process.env.AI_PROVIDER || (GEMINI_KEY ? "gemini" : CLAUDE_KEY ? "claude" : "none")).toLowerCase();
@@ -26,16 +26,22 @@ export const status = gemini || claude
 // ("claude" is the historical field name the UI reads: ok | checking | error | no_key)
 
 export const aiUsable = () => status.claude === "ok" || status.claude === "checking";
-export const aiName = () => `${label} (${MODEL})`;
+export const aiName = () => `${label} (${gemini ? lastModelUsed.name : MODEL})`;
 
 export async function checkAI() {
   if (!gemini && !claude) return status;
   try {
-    if (gemini) await gemini.models.get({ model: MODEL });
+    // A real (tiny) generation call: model listing can succeed for models a key can no longer use.
+    if (gemini) await gemini.models.generateContent({ model: MODEL, contents: "ping", config: { maxOutputTokens: 1 } });
     else await claude.models.retrieve(MODEL);
     Object.assign(status, { claude: "ok", detail: `Connected · ${MODEL}` });
   } catch (e) {
     const code = e?.status;
+    // Busy or rate-limited means the key works; stay live and let per-request retries handle it.
+    if ([429, 500, 503].includes(code)) {
+      Object.assign(status, { claude: "ok", detail: `Connected · ${MODEL} (busy at startup – requests will retry)` });
+      return status;
+    }
     const why = code === 401 || code === 403 || /api key/i.test(e.message) ? `${label} API key rejected – check .env`
       : code === 404 ? `Model ${MODEL} not available on this key`
       : /fetch failed|ENOTFOUND|ECONN|network/i.test(e.message) ? `Cannot reach the ${label} API (network / proxy)`
@@ -49,10 +55,63 @@ export function markKeyRejected(e) {
   if (e?.status === 401 || e?.status === 403) Object.assign(status, { claude: "error", detail: `${label} API key rejected` });
 }
 
+// ---------------- Gemini rate limiting ----------------
+// Free-tier keys allow ~5 requests/minute *per model*, and models are sometimes overloaded (503).
+// Requests go to the preferred model first; when it is rate-limited or busy, the next request is
+// routed to another Flash model (each has its own quota) instead of waiting. Concurrency is capped.
+const GEMINI_POOL = [...new Set([GEMINI_MODEL, ...(process.env.GEMINI_MODEL_POOL || "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite").split(",").map((m) => m.trim()).filter(Boolean)])];
+const cooldownUntil = new Map(); // model -> timestamp when it may be used again
+const MAX_PARALLEL = Number(process.env.GEMINI_MAX_PARALLEL || 3);
+let active = 0;
+const queue = [];
+async function limited(fn) {
+  if (active >= MAX_PARALLEL) await new Promise((r) => queue.push(r));
+  active++;
+  try { return await fn(); } finally { active--; queue.shift()?.(); }
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const retryAfter = (e) => {
+  const m = String(e?.message || "").match(/retry in ([\d.]+)s|"retryDelay":"(\d+)s"/);
+  return m ? Number(m[1] || m[2]) * 1000 : null;
+};
+const pickModel = () => {
+  const now = Date.now();
+  return GEMINI_POOL.find((m) => (cooldownUntil.get(m) || 0) <= now)
+    || GEMINI_POOL.reduce((a, b) => ((cooldownUntil.get(a) || 0) <= (cooldownUntil.get(b) || 0) ? a : b));
+};
+export const lastModelUsed = { name: GEMINI_MODEL };
+
+async function geminiGenerate(params) {
+  return limited(async () => {
+    for (let attempt = 0; ; attempt++) {
+      const model = pickModel();
+      const wait = (cooldownUntil.get(model) || 0) - Date.now();
+      if (wait > 0) await sleep(Math.min(wait, 20000)); // every model cooling down: wait for the soonest
+      try {
+        const r = await gemini.models.generateContent({ ...params, model });
+        lastModelUsed.name = model;
+        return r;
+      } catch (e) {
+        const code = e?.status;
+        const network = !code && /fetch failed|ECONNRESET|ETIMEDOUT|socket|network/i.test(String(e?.message));
+        if (network && attempt < 4) {
+          console.warn(`Gemini network error (${e.message}); retrying`);
+          await sleep(1500 * (attempt + 1));
+          continue;
+        }
+        if (![429, 500, 503].includes(code) || attempt >= 8) throw e;
+        const cool = code === 429 ? retryAfter(e) ?? 30000 : 8000;
+        cooldownUntil.set(model, Date.now() + cool);
+        console.warn(`Gemini ${code} on ${model}; cooling it for ${Math.round(cool / 1000)}s and trying another model`);
+      }
+    }
+  });
+}
+
 // ---------------- 1. structured extraction from a document ----------------
 export async function extractJson({ data, mediaType }, system, prompt, jsonSchema) {
   if (gemini) {
-    const r = await gemini.models.generateContent({
+    const r = await geminiGenerate({
       model: MODEL,
       contents: [{ role: "user", parts: [{ inlineData: { mimeType: mediaType, data: data.toString("base64") } }, { text: prompt }] }],
       config: { systemInstruction: system, responseMimeType: "application/json", responseJsonSchema: jsonSchema, temperature: 0 },
@@ -78,7 +137,7 @@ export async function extractJson({ data, mediaType }, system, prompt, jsonSchem
 // messages: [{role: "user"|"assistant", content: string}], starting with user, alternating.
 export async function chatText(system, messages) {
   if (gemini) {
-    const r = await gemini.models.generateContent({
+    const r = await geminiGenerate({
       model: MODEL,
       contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
       config: { systemInstruction: system, temperature: 0.3 },
@@ -102,7 +161,7 @@ export function newConversation(userText) {
 
 export async function toolTurn(system, convo, tools) {
   if (gemini) {
-    const r = await gemini.models.generateContent({
+    const r = await geminiGenerate({
       model: MODEL,
       contents: convo,
       config: {

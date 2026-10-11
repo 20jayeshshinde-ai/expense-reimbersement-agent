@@ -123,7 +123,8 @@ const SYSTEM = `You are the Audit Agent in a corporate expense reimbursement sys
 Your job: investigate every bill for authenticity and policy compliance, then recommend approve or reject for each one. A human finance approver makes the final decision, so explain your evidence clearly.
 
 How to work:
-- Start with list_bills. For each bill, run the checks you judge necessary. Run every check on high-value bills and bills with anything unusual. Call independent checks in parallel.
+- Start with list_bills. Then, in ONE turn, call every check you judge necessary for ALL bills at once (parallel function calls). Run every check on high-value bills and bills with anything unusual.
+- Then, in ONE turn, call record_verdict for every bill, together with finish_review. Keep the number of turns small.
 - Reject a bill when there is concrete evidence it is not genuine or not reimbursable: invalid or mismatched GSTIN, totals that do not add up, editing-software traces, already reimbursed, missing date/amount, or outside the submission window.
 - Policy caps are not grounds for rejection; the over-cap part is deducted automatically. Approve and mention the deduction.
 - A warning on its own (e.g. a GSTIN that isn't in the registry) is not proof of fraud. Approve it with medium risk and say what the approver should glance at.
@@ -168,7 +169,7 @@ async function runAIAgent(lines, tools, emit) {
     addToolResults(convo, results);
     if (summary && Object.keys(verdicts).length >= lines.length) break;
   }
-  return { verdicts, summary, agent: `${status.provider} Audit Agent (${status.model})` };
+  return { verdicts, summary, agent: `${aiName().replace(" (", " Audit Agent (")}` };
 }
 
 // ---------------- offline rule-based agent (same tools, fixed plan) ----------------

@@ -19,7 +19,7 @@ function snapshot(state) {
     claim: d && {
       id: d.claimId, status: d.status, agent: d.agent, agent_summary: d.agentSummary,
       claimed_inr: d.claimedAmount, recommended_inr: d.recommendedAmount, approved_inr: d.approvedAmount,
-      policy_deductions_inr: d.policyDeduction, flagged_inr: d.flaggedAmount, approver: d.approver, approver_comment: d.comment,
+      approval_needed_from: d.approvalLevel, policy_deductions_inr: d.policyDeduction, flagged_inr: d.flaggedAmount, approver: d.approver, approver_comment: d.comment,
       payout: d.payout,
     },
     bills: lines.map((l) => ({
@@ -34,7 +34,7 @@ function snapshot(state) {
 
 const SYSTEM = `You are ClaimPilot, the employee-facing expense assistant in a chat window. You can see the employee's current claim (JSON below).
 Answer briefly and concretely in 1-4 short sentences or a short bullet list, citing vendors and rupee amounts from the data.
-Never invent bills, amounts or decisions. Only a human finance approver can approve money; you cannot change a decision.
+Never invent bills, amounts, decisions or approval routes; use approval_needed_from for who must approve. Only a human finance approver can approve money; you cannot change a decision.
 If they want to add receipts, tell them to attach files with the 📎 button. Company policy:
 ${POLICY_SUMMARY.map((p) => "- " + p).join("\n")}`;
 
