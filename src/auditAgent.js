@@ -1,18 +1,16 @@
-// Audit Agent – an autonomous Claude tool-use agent that investigates every bill in a claim.
-// Claude decides which checks to run, interprets the evidence, and records a verdict per bill
+// Audit Agent – an autonomous function-calling agent (Gemini or Claude) that investigates every bill.
+// The model decides which checks to run, interprets the evidence, and records a verdict per bill
 // with its reasoning. It only RECOMMENDS: a human finance approver makes the final decision.
 // Without an API key, a rule-based agent runs the same tools in a fixed order (offline mode).
-import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs";
 import { POLICY } from "./policy.js";
 import { validateGstin, reconcile } from "./forensics.js";
 import { today, fmt } from "./claim.js";
-import { status, MODEL } from "./extractor.js";
+import { addToolResults, aiName, aiUsable, newConversation, nudge, status, toolTurn } from "./llm.js";
 
 const registry = JSON.parse(fs.readFileSync(new URL("./data/gst-registry.json", import.meta.url), "utf8"));
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const DAY = 86_400_000;
-const client = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN ? new Anthropic() : null;
 
 // ---------------- tools (shared by the Claude agent and the offline agent) ----------------
 // Each returns { status: pass|warn|fail, detail, ...data } so findings render the same everywhere.
@@ -90,18 +88,18 @@ const CHECKS = Object.keys(CHECK_LABEL);
 
 const itemParam = { type: "object", properties: { item_id: { type: "string", description: "Bill id from list_bills, e.g. it_3" } }, required: ["item_id"], additionalProperties: false };
 const TOOL_DEFS = [
-  { name: "list_bills", description: "List every bill in the claim with id, vendor, date, amount and category. Call this first.", input_schema: { type: "object", properties: {}, additionalProperties: false } },
-  { name: "get_bill_details", description: "All fields the intake agent extracted from one bill, including every printed amount row and any visual concerns.", input_schema: itemParam },
-  { name: "verify_gstin", description: "Validate the supplier GSTIN checksum and look it up in the GST registry to confirm it belongs to the vendor.", input_schema: itemParam },
-  { name: "check_arithmetic", description: "Check that the printed line items, taxes and charges add up to the printed total. A mismatch suggests an edited amount.", input_schema: itemParam },
-  { name: "check_metadata_tampering", description: "Inspect the receipt file metadata (EXIF / PDF producer) for traces of photo or PDF editing software.", input_schema: itemParam },
-  { name: "check_claim_history", description: "Search the reimbursement system for the same bill in an earlier claim.", input_schema: itemParam },
-  { name: "check_policy", description: "Apply company expense policy: required fields, submission window, caps (hotel/meal/alcohol). Returns eligible amount.", input_schema: itemParam },
+  { name: "list_bills", description: "List every bill in the claim with id, vendor, date, amount and category. Call this first.", parameters: { type: "object", properties: {}, additionalProperties: false } },
+  { name: "get_bill_details", description: "All fields the intake agent extracted from one bill, including every printed amount row and any visual concerns.", parameters: itemParam },
+  { name: "verify_gstin", description: "Validate the supplier GSTIN checksum and look it up in the GST registry to confirm it belongs to the vendor.", parameters: itemParam },
+  { name: "check_arithmetic", description: "Check that the printed line items, taxes and charges add up to the printed total. A mismatch suggests an edited amount.", parameters: itemParam },
+  { name: "check_metadata_tampering", description: "Inspect the receipt file metadata (EXIF / PDF producer) for traces of photo or PDF editing software.", parameters: itemParam },
+  { name: "check_claim_history", description: "Search the reimbursement system for the same bill in an earlier claim.", parameters: itemParam },
+  { name: "check_policy", description: "Apply company expense policy: required fields, submission window, caps (hotel/meal/alcohol). Returns eligible amount.", parameters: itemParam },
   {
     name: "record_verdict",
     description: "Record your recommendation for one bill after investigating it. Every bill needs exactly one verdict.",
     strict: true,
-    input_schema: {
+    parameters: {
       type: "object",
       properties: {
         item_id: { type: "string" },
@@ -117,7 +115,7 @@ const TOOL_DEFS = [
     name: "finish_review",
     description: "Call once every bill has a verdict. Summarise the claim for the human approver.",
     strict: true,
-    input_schema: { type: "object", properties: { summary: { type: "string", description: "2-3 sentence summary: what is safe to pay, what was flagged and why" } }, required: ["summary"], additionalProperties: false },
+    parameters: { type: "object", properties: { summary: { type: "string", description: "2-3 sentence summary: what is safe to pay, what was flagged and why" } }, required: ["summary"], additionalProperties: false },
   },
 ];
 
@@ -131,65 +129,52 @@ How to work:
 - A warning on its own (e.g. a GSTIN that isn't in the registry) is not proof of fraud. Approve it with medium risk and say what the approver should glance at.
 - Call record_verdict once per bill, then finish_review. Do not stop until every bill has a verdict.`;
 
-// ---------------- Claude agent loop ----------------
-async function runClaudeAgent(lines, tools, emit) {
+// ---------------- AI agent loop (Gemini or Claude function calling) ----------------
+async function runAIAgent(lines, tools, emit) {
   const verdicts = {};
   let summary = null;
-  const messages = [{ role: "user", content: `Audit this claim. Employee: ${lines[0]?.employeeName || "employee"}. ${lines.length} bills. Today is ${today().toISOString().slice(0, 10)}.` }];
+  const convo = newConversation(`Audit this claim. Employee: ${lines[0]?.employeeName || "employee"}. ${lines.length} bills. Today is ${today().toISOString().slice(0, 10)}.`);
 
   for (let turn = 0; turn < 30; turn++) {
-    const response = await client.beta.messages.create({
-      model: MODEL,
-      max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: { effort: "medium" },
-      system: SYSTEM,
-      tools: TOOL_DEFS,
-      messages,
-    });
-    if (response.stop_reason === "refusal") throw new Error("Audit agent declined the request");
-    messages.push({ role: "assistant", content: response.content });
-
-    for (const b of response.content) if (b.type === "text" && b.text.trim()) emit({ type: "thought", text: b.text.trim() });
-
-    const calls = response.content.filter((b) => b.type === "tool_use");
+    const { text, calls } = await toolTurn(SYSTEM, convo, TOOL_DEFS);
+    if (text) emit({ type: "thought", text });
     if (!calls.length) {
       if (Object.keys(verdicts).length >= lines.length) break;
-      messages.push({ role: "user", content: `Bills still without a verdict: ${lines.filter((l) => !verdicts[l.itemId]).map((l) => l.itemId).join(", ")}. Investigate them and call record_verdict, then finish_review.` });
+      nudge(convo, `Bills still without a verdict: ${lines.filter((l) => !verdicts[l.itemId]).map((l) => l.itemId).join(", ")}. Investigate them and call record_verdict, then finish_review.`);
       continue;
     }
-
     const results = [];
     for (const call of calls) {
-      let out;
+      const args = call.args || {};
       try {
+        let output;
         if (call.name === "record_verdict") {
-          verdicts[call.input.item_id] = call.input;
-          emit({ type: "verdict", ...call.input, vendor: lines.find((l) => l.itemId === call.input.item_id)?.vendor });
-          out = { recorded: true, remaining: lines.filter((l) => !verdicts[l.itemId]).map((l) => l.itemId) };
+          if (!["approve", "reject"].includes(args.recommendation)) throw new Error("recommendation must be approve or reject");
+          verdicts[args.item_id] = args;
+          emit({ type: "verdict", ...args, vendor: lines.find((l) => l.itemId === args.item_id)?.vendor });
+          output = { recorded: true, remaining: lines.filter((l) => !verdicts[l.itemId]).map((l) => l.itemId) };
         } else if (call.name === "finish_review") {
-          summary = call.input.summary;
-          out = { ok: true };
-        } else {
-          out = tools[call.name](call.input);
-          emit({ type: "tool", tool: call.name, item_id: call.input.item_id, vendor: lines.find((l) => l.itemId === call.input.item_id)?.vendor, status: out.status, detail: out.detail ?? `${out.bills?.length ?? ""} bills` });
-        }
-        results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(out) });
+          summary = args.summary;
+          output = { ok: true };
+        } else if (tools[call.name]) {
+          output = tools[call.name](args);
+          emit({ type: "tool", tool: call.name, item_id: args.item_id, vendor: lines.find((l) => l.itemId === args.item_id)?.vendor, status: output.status, detail: output.detail ?? `${output.bills?.length ?? ""} bills` });
+        } else throw new Error(`Unknown tool ${call.name}`);
+        results.push({ call, output });
       } catch (e) {
-        results.push({ type: "tool_result", tool_use_id: call.id, content: e.message, is_error: true });
+        results.push({ call, output: e.message, isError: true });
       }
     }
-    messages.push({ role: "user", content: results });
+    addToolResults(convo, results);
     if (summary && Object.keys(verdicts).length >= lines.length) break;
   }
-  return { verdicts, summary, agent: `Claude Audit Agent (${MODEL})` };
+  return { verdicts, summary, agent: `${status.provider} Audit Agent (${status.model})` };
 }
 
 // ---------------- offline rule-based agent (same tools, fixed plan) ----------------
 async function runOfflineAgent(lines, tools, emit) {
   const pause = () => new Promise((r) => setTimeout(r, 120));
-  emit({ type: "thought", text: `Offline mode: running the standard audit plan on ${lines.length} bills (add ANTHROPIC_API_KEY for the Claude agent).` });
+  emit({ type: "thought", text: `Offline mode: running the standard audit plan on ${lines.length} bills (add GEMINI_API_KEY or ANTHROPIC_API_KEY to .env for the AI agent).` });
   tools.list_bills();
   emit({ type: "tool", tool: "list_bills", status: "pass", detail: `${lines.length} bills` });
   const verdicts = {};
@@ -222,12 +207,13 @@ export async function runAudit(submission, priorDup, emit = () => {}) {
   const tools = makeTools(lines, priorDup);
 
   let run;
-  if (client && (status.claude === "ok" || status.claude === "checking")) {
+  if (status.claude !== "no_key" && aiUsable()) {
     try {
-      emit({ type: "agent", text: `Claude Audit Agent (${MODEL}) started` });
-      run = await runClaudeAgent(lines, tools, emit);
+      emit({ type: "agent", text: `${status.provider} Audit Agent (${status.model}) started` });
+      run = await runAIAgent(lines, tools, emit);
     } catch (e) {
-      emit({ type: "thought", text: `Claude agent unavailable (${e.message}); switching to the offline audit agent.` });
+      console.warn(`AI audit agent failed: ${e.message}`);
+      emit({ type: "thought", text: `${aiName()} unavailable (${e.message.slice(0, 120)}); switching to the offline audit agent.` });
     }
   }
   if (!run) {

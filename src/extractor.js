@@ -1,9 +1,7 @@
-// Document understanding. Two engines produce the same structured record:
-//  - Claude (vision + native PDF) – primary, real-time engine when ANTHROPIC_API_KEY is set (.env).
+// Intake Agent – document understanding. Two engines produce the same structured record:
+//  - Gemini or Claude vision/PDF (see llm.js) – primary, real-time engine when a key is in .env.
 //    Also inspects each image for visual tampering.
-//  - Local AI (neural OCR + receipt parser) – offline fallback when there is no key or Claude is unreachable.
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+//  - Local AI (neural OCR + receipt parser) – offline fallback when there is no key or the API is unreachable.
 import { z } from "zod";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -11,30 +9,11 @@ import path from "node:path";
 import { CATEGORIES } from "./policy.js";
 import { extractLocal, LOCAL_ENGINE } from "./localAI.js";
 import { editingTraces, repairGstin } from "./forensics.js";
+import { aiName, aiUsable, checkAI, extractJson, markKeyRejected, MODEL, status } from "./llm.js";
 
-export const MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
-const HAS_KEY = !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
-const client = HAS_KEY ? new Anthropic() : null;
-
-// Live engine status, verified against the API at startup (see checkClaude).
-export const status = { claude: HAS_KEY ? "checking" : "no_key", detail: HAS_KEY ? "Verifying API key…" : "No ANTHROPIC_API_KEY in .env", model: MODEL };
-const claudeUsable = () => status.claude === "ok" || status.claude === "checking";
-export const engineName = () => (claudeUsable() ? `Claude (${MODEL})` : LOCAL_ENGINE);
-
-export async function checkClaude() {
-  if (!client) return status;
-  try {
-    await client.models.retrieve(MODEL);
-    Object.assign(status, { claude: "ok", detail: `Connected · ${MODEL}` });
-  } catch (e) {
-    const why = e instanceof Anthropic.AuthenticationError ? "API key rejected (401) – check ANTHROPIC_API_KEY"
-      : e instanceof Anthropic.NotFoundError ? `Model ${MODEL} not available on this key`
-      : e instanceof Anthropic.APIConnectionError ? "Cannot reach api.anthropic.com (network / proxy)"
-      : e.message;
-    Object.assign(status, { claude: "error", detail: why });
-  }
-  return status;
-}
+export { MODEL, status };
+export const checkClaude = checkAI; // kept for server.js
+export const engineName = () => (aiUsable() ? aiName() : LOCAL_ENGINE);
 
 const AmountLine = z.object({ label: z.string(), amount: z.number(), kind: z.enum(["item", "subtotal", "tax", "charge", "discount"]) });
 
@@ -80,24 +59,11 @@ const mediaTypeFor = (file) => {
 
 export const sha256 = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
 
-async function extractClaude(buf, mediaType) {
-  const data = buf.toString("base64");
-  const docBlock = mediaType === "application/pdf"
-    ? { type: "document", source: { type: "base64", media_type: "application/pdf", data } }
-    : { type: "image", source: { type: "base64", media_type: mediaType, data } };
-  const response = await client.beta.messages.parse({
-    model: MODEL,
-    max_tokens: 16000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: { effort: "low", format: betaZodOutputFormat(Extraction) },
-    system: SYSTEM,
-    messages: [{ role: "user", content: [docBlock, { type: "text", text: "Extract and screen this document." }] }],
-  });
-  if (response.stop_reason === "refusal") throw new Error("The model declined to process this document.");
-  if (response.stop_reason === "max_tokens") throw new Error("Extraction was cut off (document too long).");
-  if (!response.parsed_output) throw new Error("Could not parse extraction output.");
-  const out = response.parsed_output;
+const EXTRACTION_SCHEMA = z.toJSONSchema(Extraction, { target: "draft-7" });
+
+async function extractAI(buf, mediaType) {
+  const out = await extractJson({ data: buf, mediaType }, SYSTEM, "Extract and screen this document.", EXTRACTION_SCHEMA);
+  if (!Array.isArray(out?.expenses)) throw new Error("Unexpected extraction output.");
   for (const e of out.expenses) if (e.gstin) e.gstin = repairGstin(e.gstin.replace(/[^0-9A-Z]/gi, ""));
   return out;
 }
@@ -107,13 +73,13 @@ export async function extractDocument(file) {
   const mediaType = mediaTypeFor(file);
   const started = Date.now();
   let result, engine;
-  if (client && claudeUsable()) {
+  if (aiUsable() && status.claude !== "no_key") {
     try {
-      result = await extractClaude(buf, mediaType);
-      engine = `Claude (${MODEL})`;
+      result = await extractAI(buf, mediaType);
+      engine = aiName();
     } catch (e) {
-      console.warn(`Claude extraction failed for ${file.originalname} (${e.message}); using local AI.`);
-      if (e instanceof Anthropic.AuthenticationError) Object.assign(status, { claude: "error", detail: "API key rejected (401)" });
+      console.warn(`AI extraction failed for ${file.originalname} (${e.message}); using local AI.`);
+      markKeyRejected(e);
     }
   }
   if (!result) {

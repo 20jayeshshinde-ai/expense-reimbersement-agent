@@ -82,7 +82,7 @@ function detectDuplicates(claim) {
     if (!a.duplicate) {
       const p = prior.find((p) => norm(p.vendor) === norm(a.vendor) && p.total === a.total &&
         (p.date === a.date || (p.invoice_number && norm(p.invoice_number) === norm(a.invoice_number))));
-      if (p) a.duplicate = { of: p.claimId, kind: "already_claimed", reason: `Already reimbursed in claim ${p.claimId}` };
+      if (p) a.duplicate = { of: p.claimId, kind: "already_claimed", reason: p.status === "pending_approval" ? `Already submitted in claim ${p.claimId} (awaiting approval)` : `Already claimed in ${p.claimId} (${String(p.status).replace(/_/g, " ")})` };
     }
     seen.push(a);
   }

@@ -15,12 +15,21 @@ const history = [
   },
 ];
 
+const toItem = (l) => ({ vendor: l.vendor, date: l.date, total: l.amount, currency: l.currency, invoice_number: l.invoiceNumber });
+const lineItems = (d) => d.lines.filter((l) => l.verdict === "approved").map(toItem);
+
+// Every bill that is already claimed: paid/approved lines, plus lines sitting in claims that are
+// still awaiting approval (otherwise the same bill could be submitted again while the first is pending).
 export function priorClaimItems() {
-  return history.flatMap((c) => c.items.map((i) => ({ ...i, claimId: c.claimId, status: c.status })));
+  return history.flatMap((c) => {
+    const items = c.decision?.status === "pending_approval"
+      ? c.decision.lines.filter((l) => l.recommendation === "approve").map(toItem)
+      : c.items;
+    return items.map((i) => ({ ...i, claimId: c.claimId, status: c.decision?.status || c.status }));
+  });
 }
 
 let counter = 1040;
-const lineItems = (d) => d.lines.filter((l) => l.verdict === "approved").map((l) => ({ vendor: l.vendor, date: l.date, total: l.amount, currency: l.currency, invoice_number: l.invoiceNumber }));
 
 // Agent-reviewed claim enters the finance approval queue.
 export function enqueue(employee, decision) {

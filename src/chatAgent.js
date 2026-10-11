@@ -1,12 +1,9 @@
 // Chat assistant for the employee: answers questions about their claim in plain language.
-// Claude answers free-form when the API key works; otherwise a small intent matcher answers
+// Gemini or Claude answers free-form when a key works; otherwise a small intent matcher answers
 // the common questions (status, flagged bills, deductions, policy, totals) from the same data.
-import Anthropic from "@anthropic-ai/sdk";
 import { CATEGORIES, POLICY_SUMMARY } from "./policy.js";
 import { fmt } from "./claim.js";
-import { MODEL, status } from "./extractor.js";
-
-const client = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN ? new Anthropic() : null;
+import { chatText, status } from "./llm.js";
 
 const STATUS_TEXT = { pending_approval: "waiting for a finance approver", approved: "approved", partially_approved: "partially approved", rejected: "rejected" };
 
@@ -41,7 +38,7 @@ Never invent bills, amounts or decisions. Only a human finance approver can appr
 If they want to add receipts, tell them to attach files with the 📎 button. Company policy:
 ${POLICY_SUMMARY.map((p) => "- " + p).join("\n")}`;
 
-async function askClaude(message, history, snap) {
+async function askAI(message, history, snap) {
   const messages = [
     ...history.slice(-8).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text })),
     { role: "user", content: `Current claim data:\n${JSON.stringify(snap)}\n\nEmployee: ${message}` },
@@ -53,17 +50,7 @@ async function askClaude(message, history, snap) {
     if (merged.length && merged.at(-1).role === m.role) merged.at(-1).content += `\n\n${m.content}`;
     else merged.push({ ...m });
   }
-  const response = await client.beta.messages.create({
-    model: MODEL,
-    max_tokens: 2000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: { effort: "low" },
-    system: SYSTEM,
-    messages: merged,
-  });
-  if (response.stop_reason === "refusal") return null;
-  return response.content.filter((b) => b.type === "text").map((b) => b.text).join("\n").trim() || null;
+  return chatText(SYSTEM, merged);
 }
 
 // ---------------- offline intent answers ----------------
@@ -105,17 +92,17 @@ function answerOffline(message, snap) {
     return `Claim ${c.id} is ${STATUS_TEXT[c.status]}. ${amt} out of ${fmt(c.claimed_inr)} claimed.${c.payout ? " " + c.payout + "." : ""}`;
   }
   if (/trip|purpose/.test(q) && snap.trips.length) return snap.trips.map((t) => `• ${t.title} (${t.from} → ${t.to}): ${t.purpose}`).join("\n");
-  return "I can tell you your claim status, why a bill was flagged, deductions, duplicates or the policy. (Add an Anthropic API key for free-form answers.)";
+  return "I can tell you your claim status, why a bill was flagged, deductions, duplicates or the policy. (Add a Gemini or Anthropic API key in .env for free-form answers.)";
 }
 
 export async function chat(message, history, state) {
   const snap = snapshot(state);
-  if (client && status.claude === "ok") {
+  if (status.claude === "ok") {
     try {
-      const text = await askClaude(message, history, snap);
-      if (text) return { reply: text, engine: "claude" };
+      const text = await askAI(message, history, snap);
+      if (text) return { reply: text, engine: status.provider };
     } catch (e) {
-      console.warn(`Chat via Claude failed (${e.message}); answering offline.`);
+      console.warn(`Chat via ${status.provider} failed (${e.message}); answering offline.`);
     }
   }
   return { reply: answerOffline(message, snap), engine: "offline" };

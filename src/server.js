@@ -142,7 +142,7 @@ function start(port, attemptsLeft = 10) {
     console.log(`Expense & Reimbursement Agent on http://localhost:${port}`);
     warmUpOcr().catch((e) => console.warn(`Local OCR warm-up failed: ${e.message}`));
     const s = await checkClaude();
-    console.log(s.claude === "ok" ? `AI engine: Claude ✔ (${s.detail})` : `AI engine: Local AI (offline) – Claude: ${s.detail}`);
+    console.log(s.claude === "ok" ? `AI engine: ${s.provider} ✔ (${s.detail})` : `AI engine: Local AI (offline) – ${s.detail}`);
   });
   server.on("error", (err) => {
     if (err.code === "EADDRINUSE" && attemptsLeft > 0) {

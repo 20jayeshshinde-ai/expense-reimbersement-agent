@@ -157,7 +157,7 @@ const webHooks = {
     showStage("process");
     setStep("read");
     $("#procTitle").textContent = "Intake Agent is reading your receipts…";
-    $("#procSub").textContent = CONFIG.live ? `Claude ${CONFIG.status.model} · vision + PDF understanding · tamper inspection` : "Local AI · neural OCR + receipt parser";
+    $("#procSub").textContent = CONFIG.live ? `${CONFIG.status.provider} ${CONFIG.status.model} · vision + PDF understanding · tamper inspection` : "Local AI · neural OCR + receipt parser";
     $("#procFiles").innerHTML = names.map((n) => `<div class="pf"><span>⏳</span><span class="nm">${esc(n)}</span></div>`).join("");
   },
   onReadDone(report) {
@@ -512,8 +512,8 @@ function showEngine() {
   const s = CONFIG.status || {};
   const el = $("#engine");
   el.className = `engine ${s.claude === "ok" ? "live" : s.claude === "checking" ? "chk" : "off"}`;
-  el.innerHTML = s.claude === "ok" ? `● Live AI · Claude<br/><small>${esc(s.model)}</small>` : s.claude === "checking" ? "Connecting to Claude…" : `● Offline AI engine<br/><small>${esc(s.detail || "")}</small>`;
-  el.title = s.claude === "ok" ? s.detail : `Claude not active – ${s.detail}. Receipts are read by the offline local AI engine.`;
+  el.innerHTML = s.claude === "ok" ? `● Live AI · ${esc(s.provider)}<br/><small>${esc(s.model)}</small>` : s.claude === "checking" ? `Connecting to ${esc(s.provider)}…` : `● Offline AI engine<br/><small>${esc(s.detail || "")}</small>`;
+  el.title = s.claude === "ok" ? s.detail : `Live AI not active – ${s.detail}. Receipts are read by the offline local AI engine.`;
 }
 
 function accept(fileList) {
