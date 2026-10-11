@@ -77,6 +77,7 @@ export function lineCard(l, aiNotes = [], controls = "") {
       <div class="amt">${inr(shown)}${shown !== l.amountInr ? `<s>${inr(l.amountInr)}</s>` : ""}</div>
       ${controls || lineBadge(l)}
       ${fails.length ? `<div class="reason">⛔ ${fails.map((f) => `${esc(f.name)}: ${esc(f.detail)}`).join(" · ")}</div>` : ""}
+      ${l.possibleDuplicate ? `<div class="adj">🔍 ${esc(l.possibleDuplicate)}</div>` : ""}
       ${l.agentReason ? `<div class="why">🤖 ${esc(l.agentReason)}${l.risk ? ` <span class="risk ${l.risk}">${l.risk} risk</span>` : ""}</div>` : ""}
       ${!fails.length && l.adjustments.length ? `<div class="adj">📏 ${l.adjustments.map((a) => `${esc(a.text)} (−${inr(a.amount)})`).join(" · ")}</div>` : ""}
     </summary>

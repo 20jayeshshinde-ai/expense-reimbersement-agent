@@ -3,6 +3,7 @@
 // purpose / attendees itself. Every automatic decision is recorded as an "AI note" for audit.
 import { CATEGORIES, FX_TO_INR, POLICY, TRAVEL_ANCHORS, isMetro } from "./policy.js";
 import { priorClaimItems } from "./mockFinance.js";
+import { compareReceipts } from "./duplicates.js";
 
 const DAY = 86_400_000;
 export const today = () => new Date(process.env.DEMO_TODAY || Date.now());
@@ -66,23 +67,32 @@ function buildGroups(claim) {
 }
 
 // ---------------- duplicates ----------------
+// Only exact copies are removed or blocked; near matches are kept and flagged for the approver.
 function detectDuplicates(claim) {
   const prior = priorClaimItems().filter((p) => p.claimId !== claim.decision?.claimId);
   const seen = [];
   for (const a of claim.items) {
     a.duplicate = null;
+    a.possibleDuplicate = null;
     for (const b of seen) {
-      if (a.fileHash === b.fileHash) a.duplicate = { of: b.id, kind: "exact", reason: `Same file as ${b.file}` };
-      else if (a.invoice_number && b.invoice_number && norm(a.invoice_number) === norm(b.invoice_number) && norm(a.vendor) === norm(b.vendor))
-        a.duplicate = { of: b.id, kind: "same_receipt", reason: `Same vendor & invoice no. ${a.invoice_number} as ${b.file} (re-photographed)` };
-      else if (a.total && a.total === b.total && a.date && a.date === b.date && norm(a.vendor) === norm(b.vendor))
-        a.duplicate = { of: b.id, kind: "same_receipt", reason: `Same vendor, date and amount as ${b.file}` };
-      if (a.duplicate) break;
+      const m = compareReceipts(a, b, b.file);
+      if (!m) continue;
+      if (m.kind === "possible") { a.possibleDuplicate ??= { of: b.id, reason: m.reason }; continue; }
+      a.duplicate = { of: b.id, kind: m.kind, reason: m.reason };
+      break;
     }
     if (!a.duplicate) {
-      const p = prior.find((p) => norm(p.vendor) === norm(a.vendor) && p.total === a.total &&
-        (p.date === a.date || (p.invoice_number && norm(p.invoice_number) === norm(a.invoice_number))));
-      if (p) a.duplicate = { of: p.claimId, kind: "already_claimed", reason: p.status === "pending_approval" ? `Already submitted in claim ${p.claimId} (awaiting approval)` : `Already claimed in ${p.claimId} (${String(p.status).replace(/_/g, " ")})` };
+      for (const p of prior) {
+        const m = compareReceipts(a, p, `claim ${p.claimId}`);
+        if (!m) continue;
+        if (m.kind === "possible") { a.possibleDuplicate ??= { of: p.claimId, reason: m.reason }; continue; }
+        a.duplicate = {
+          of: p.claimId, kind: "already_claimed",
+          reason: p.status === "pending_approval" ? `Already submitted in claim ${p.claimId} (awaiting approval) – every detail matches`
+            : `Already claimed in ${p.claimId} (${String(p.status).replace(/_/g, " ")}) – every detail matches`,
+        };
+        break;
+      }
     }
     seen.push(a);
   }
@@ -154,6 +164,7 @@ function autoResolve(claim) {
   }
   for (const i of claim.items.filter((i) => !i.excluded)) {
     if (i.groupId !== "grp_local") i.aiNotes.push(`Grouped into ${claim.groups[i.groupId].title}`);
+    if (i.possibleDuplicate) i.aiNotes.push(`Possible duplicate – kept: ${i.possibleDuplicate.reason}`);
     if (i.category === "client_entertainment" && i.attendees) i.aiNotes.push(`Attendees: ${i.attendees} (covers printed on bill)`);
   }
 }
@@ -185,7 +196,7 @@ export function buildSubmission(claim) {
       itemId: i.id, date: i.date, vendor: i.vendor, category: i.category, categoryLabel: CATEGORIES[i.category]?.label,
       glCode: CATEGORIES[i.category]?.glCode, description: i.description, city: i.city, currency: i.currency,
       amount: i.total, amountInr: i.amountInr, eligibleInr: i.reimbursable, tax: i.tax, gstin: i.gstin || null,
-      invoiceNumber: i.invoice_number, paymentMethod: i.payment_method, purpose: i.purpose, attendees: i.attendees,
+      invoiceNumber: i.invoice_number, time: i.time || null, lineItems: i.line_items || [], fileHash: i.fileHash, possibleDuplicate: i.possibleDuplicate?.reason || null, paymentMethod: i.payment_method, purpose: i.purpose, attendees: i.attendees,
       adjustments: i.adjustments, amountLines: i.amount_lines || [], visualConcerns: i.visual_concerns || [],
       editingTraces: i.editingTraces, receiptFile: i.file, receiptSha256: i.fileHash, extractedBy: i.engine,
     })),

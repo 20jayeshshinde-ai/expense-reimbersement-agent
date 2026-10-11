@@ -53,10 +53,12 @@ The badge in the top bar shows which engine is active.
 | `verify_gstin` | Bad GSTIN checksum or state code, or a GSTIN registered to a different business (checked against a mock GST registry) |
 | `check_arithmetic` | Printed line items + tax + charges ≠ printed total, a classic edited-amount fraud |
 | `check_metadata_tampering` | EXIF/PDF metadata from Photoshop, Canva, PDF editors, etc., plus visual anomalies from Claude vision |
-| `check_claim_history` | The same bill already reimbursed in an earlier claim |
+| `check_claim_history` | The same bill already submitted or reimbursed in another claim |
+
+**Duplicate rule.** A receipt is only removed or blocked as a duplicate when it is the same file, or **every** detail matches exactly: vendor, date, time, bill/invoice no., currency, total, tax, and every line item with its cost. Near matches (for example, same place, day and amount but a different menu or time) are kept and shown to the approver as a possible duplicate.
 | `check_policy` | Missing date or amount, outside the 60-day window, future dates, policy caps |
 
-### The demo set (8 synthetic receipts)
+### The demo set (9 synthetic receipts)
 
 | File | What happens |
 |---|---|
@@ -64,12 +66,13 @@ The badge in the top bar shows which engine is active.
 | `02_flight_bom_blr.pdf` | Scanned PDF read by OCR; anchors "Trip to Bengaluru" ✅ |
 | `03_hotel_bengaluru.pdf` | ₹7,400/night vs the ₹6,000 metro cap, so ₹2,800 is deducted ✅ |
 | `04_client_dinner.jpg` | 3 covers read from the bill; ₹600 of beer deducted ✅ |
-| `05_taxi_airport_again.jpg` | Re-photographed copy of receipt 01, removed automatically 🔁 |
+| `05_taxi_airport_again.jpg` | Re-photographed copy of receipt 01: every detail identical, so removed automatically 🔁 |
 | `06_stationery_no_date.jpg` | Date missing, flagged ⛔ |
 | `07_coffee_already_claimed.jpg` | Already reimbursed in EXP-2026-0412, flagged ⛔ |
 | `08_fuel_edited.jpg` | **Tampered:** total edited from ₹3,386.50 to ₹5,386.50, broken GSTIN, Photoshop EXIF tag. Flagged ⛔ |
+| `09_team_lunch_same_place.jpg` | Same restaurant, day and total as receipt 04, but a different time, bill no. and menu. **Kept** and flagged 🔍 for the approver, not removed ✅ |
 
-Result: **8 receipts → ₹21,870 recommended and ₹6,957 flagged → a finance approver signs off.** The employee does nothing manually.
+Result: **9 receipts → ₹25,110 recommended and ₹6,957 flagged → finance (and, above ₹25,000, the manager) signs off.** The employee does nothing manually.
 
 ## Business impact (estimates to validate in a pilot)
 

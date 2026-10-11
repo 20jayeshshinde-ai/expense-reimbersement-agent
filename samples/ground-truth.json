@@ -31,7 +31,7 @@
   },
   {
     "file": "02_flight_bom_blr.pdf",
-    "sha256": "5bc4a10f1774735a58a6c4e7270c51ce047294ff1ac3f9ffaf4d12852205d545",
+    "sha256": "d0ecf902e953ce590981a9aebad4d97d7f87173498c8a0b5b382a336036c0fe0",
     "document_type": "invoice",
     "vendor": "SkyJet Airways",
     "date": "2026-09-14",
@@ -61,7 +61,7 @@
   },
   {
     "file": "03_hotel_bengaluru.pdf",
-    "sha256": "1238ca61540d0de07205fd07656ca02ad4936cb838c1da58c22f8d4a7a1221df",
+    "sha256": "bdbb36950c3dd8e36989faf11adbe8b4a8ec2805127931770a99db505598e56c",
     "document_type": "invoice",
     "vendor": "Hotel Orchid Residency",
     "date": "2026-09-16",
@@ -211,5 +211,32 @@
     "confidence": 0.9,
     "low_confidence_fields": [],
     "tampered": true
+  },
+  {
+    "file": "09_team_lunch_same_place.jpg",
+    "sha256": "02610f61086fa22554822ef5612736cce6e4a075c27feb616f347b83b3af9d6b",
+    "document_type": "receipt",
+    "vendor": "Spice Route",
+    "date": "2026-09-15",
+    "time": "13:22",
+    "currency": "INR",
+    "total": 3240,
+    "tax": 147,
+    "category": "client_entertainment",
+    "city": "Bengaluru",
+    "invoice_number": "4398",
+    "payment_method": "Card",
+    "nights": null,
+    "alcohol_amount": null,
+    "attendees": 3,
+    "description": "Lunch for 3 covers",
+    "line_items": [
+      {
+        "description": "Veg Thali x3",
+        "amount": 1350
+      }
+    ],
+    "confidence": 0.9,
+    "low_confidence_fields": []
   }
 ]

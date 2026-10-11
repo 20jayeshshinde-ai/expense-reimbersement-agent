@@ -9,13 +9,14 @@ const history = [
     employee: { name: "Asha Verma (demo)" },
     approvedAmount: 480,
     items: [
-      { vendor: "Brew Bros Cafe", date: "2026-09-03", total: 420, currency: "INR", invoice_number: "A-2231" },
+      { vendor: "Brew Bros Cafe", date: "2026-09-03", time: "16:45", total: 420, tax: null, currency: "INR", invoice_number: "A-2231",
+        line_items: [{ description: "Cappuccino x2", amount: 360 }, { description: "Banana Bread", amount: 60 }] },
       { vendor: "Metro Line One", date: "2026-09-04", total: 60, currency: "INR", invoice_number: null },
     ],
   },
 ];
 
-const toItem = (l) => ({ vendor: l.vendor, date: l.date, total: l.amount, currency: l.currency, invoice_number: l.invoiceNumber });
+const toItem = (l) => ({ vendor: l.vendor, date: l.date, time: l.time, total: l.amount, tax: l.tax, currency: l.currency, invoice_number: l.invoiceNumber, line_items: l.lineItems, fileHash: l.fileHash });
 const lineItems = (d) => d.lines.filter((l) => l.verdict === "approved").map(toItem);
 
 // Every bill that is already claimed: paid/approved lines, plus lines sitting in claims that are

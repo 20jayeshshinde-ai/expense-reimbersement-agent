@@ -60,9 +60,9 @@ function makeTools(lines, priorDup) {
     },
     check_claim_history: ({ item_id }) => {
       const l = need(item_id);
-      return priorDup[item_id]
-        ? { status: "fail", detail: priorDup[item_id] }
-        : { status: "pass", detail: "No matching bill in reimbursement history" };
+      if (priorDup[item_id]) return { status: "fail", detail: priorDup[item_id] };
+      if (l.possibleDuplicate) return { status: "warn", detail: `Possible duplicate (not identical): ${l.possibleDuplicate}` };
+      return { status: "pass", detail: "No identical bill in this claim or in reimbursement history" };
     },
     check_policy: ({ item_id }) => {
       const l = need(item_id);
@@ -127,7 +127,7 @@ How to work:
 - Then, in ONE turn, call record_verdict for every bill, together with finish_review. Keep the number of turns small.
 - Reject a bill when there is concrete evidence it is not genuine or not reimbursable: invalid or mismatched GSTIN, totals that do not add up, editing-software traces, already reimbursed, missing date/amount, or outside the submission window.
 - Policy caps are not grounds for rejection; the over-cap part is deducted automatically. Approve and mention the deduction.
-- A warning on its own (e.g. a GSTIN that isn't in the registry) is not proof of fraud. Approve it with medium risk and say what the approver should glance at.
+- A warning on its own (e.g. a GSTIN not in the registry, or a possible-but-not-identical duplicate) is not proof of fraud. Approve it with medium risk and say what the approver should glance at.
 - Call record_verdict once per bill, then finish_review. Do not stop until every bill has a verdict.`;
 
 // ---------------- AI agent loop (Gemini or Claude function calling) ----------------

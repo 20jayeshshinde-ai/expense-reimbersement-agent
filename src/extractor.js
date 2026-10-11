@@ -21,6 +21,7 @@ const Expense = z.object({
   document_type: z.enum(["receipt", "invoice", "e_ticket", "not_an_expense"]),
   vendor: z.string().nullable().describe("Merchant / supplier name as printed"),
   date: z.string().nullable().describe("Date the expense was incurred, ISO YYYY-MM-DD. Hotels: check-out date. Flights: travel date. Null if not legible or absent."),
+  time: z.string().nullable().describe("Time printed on the bill, 24h HH:MM, else null"),
   currency: z.string().nullable().describe("ISO 4217 code, e.g. INR, USD"),
   total: z.number().nullable().describe("Final amount actually paid as printed"),
   tax: z.number().nullable().describe("Total tax amount (GST/VAT) if shown"),
@@ -64,7 +65,11 @@ const EXTRACTION_SCHEMA = z.toJSONSchema(Extraction, { target: "draft-7" });
 async function extractAI(buf, mediaType) {
   const out = await extractJson({ data: buf, mediaType }, SYSTEM, "Extract and screen this document.", EXTRACTION_SCHEMA);
   if (!Array.isArray(out?.expenses)) throw new Error("Unexpected extraction output.");
-  for (const e of out.expenses) if (e.gstin) e.gstin = repairGstin(e.gstin.replace(/[^0-9A-Z]/gi, ""));
+  for (const e of out.expenses) {
+    if (e.gstin) e.gstin = repairGstin(e.gstin.replace(/[^0-9A-Z]/gi, ""));
+    // Menu / line items (description + cost) are used for exact duplicate matching.
+    e.line_items = (e.amount_lines || []).filter((l) => l.kind === "item").map(({ label, amount }) => ({ description: label, amount }));
+  }
   return out;
 }
 

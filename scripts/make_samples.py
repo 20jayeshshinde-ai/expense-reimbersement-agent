@@ -202,6 +202,17 @@ save("07_coffee_already_claimed.jpg", photo(coffee, -1.5), {
     "line_items": [], "confidence": 0.93, "low_confidence_fields": [],
 })
 
+# 9 (written after 8). Same restaurant, same day, same total as receipt 4 – but a different bill
+#    no., time and menu. A genuine second meal: must be KEPT (flagged for review), not removed.
+lunch = receipt_image([
+    L("SPICE ROUTE", 34, True, "c"), L("Indiranagar, Bengaluru", 20, False, "c"), SEP,
+    L("Bill No: 4398   Table 4   Covers: 3"), L("15/09/2026  13:22"), SEP,
+    L("Veg Thali x3\t1,350.00"), L("Masala Chaas x3\t270.00"), L("Gulab Jamun x3\t270.00"),
+    L("Paneer Butter Masala\t540.00"), L("Jeera Rice x2\t510.00"), SEP,
+    L("Sub Total\t2,940.00"), L("CGST 2.5% + SGST 2.5%\t147.00"), L("Service charge\t153.00"), SEP,
+    L("GRAND TOTAL\tINR 3,240.00", 26, True), L("Card **** 4421"), L(f"GSTIN {gstin('29', 'ABMFS6631Q')}", 18),
+])
+
 # 8. Tampered fuel bill: total edited from 3,386.50 to 5,386.50, GSTIN checksum broken,
 #    and the JPEG carries an image-editor "Software" EXIF tag.
 good = gstin("27", "AACCH1180D")
@@ -221,6 +232,14 @@ save("08_fuel_edited.jpg", photo(fuel, 0.8), {
     "attendees": None, "description": "Petrol 32.5 L", "line_items": [{"description": "Petrol 32.50 L", "amount": 3386.5}],
     "confidence": 0.9, "low_confidence_fields": [], "tampered": True,
 }, exif=exif)
+
+save("09_team_lunch_same_place.jpg", photo(lunch, 1.1), {
+    "document_type": "receipt", "vendor": "Spice Route", "date": "2026-09-15", "time": "13:22", "currency": "INR",
+    "total": 3240, "tax": 147, "category": "client_entertainment", "city": "Bengaluru",
+    "invoice_number": "4398", "payment_method": "Card", "nights": None, "alcohol_amount": None,
+    "attendees": 3, "description": "Lunch for 3 covers",
+    "line_items": [{"description": "Veg Thali x3", "amount": 1350}], "confidence": 0.9, "low_confidence_fields": [],
+})
 
 registry = {
     "QuickRide Cabs": gstin("27", "AAQCQ4821K"), "SkyJet Airways": gstin("27", "AAKCS7310M"),

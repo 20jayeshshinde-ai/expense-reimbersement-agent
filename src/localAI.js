@@ -104,6 +104,19 @@ function pickDate(lines) {
   return { date: cands[0]?.iso ?? null, all: cands };
 }
 
+// First clock time on the bill (e.g. "21:04", "9:15 PM") as 24h "HH:MM". Amounts like 640.00 are not times.
+function pickTime(text) {
+  for (const m of text.matchAll(/\b(\d{1,2}):([0-5]\d)(?:\s*([AaPp])\.?\s*[Mm]\.?)?(?!\d)/g)) {
+    let h = Number(m[1]);
+    if (m[3]) {
+      if (h < 1 || h > 12) continue;
+      h = (h % 12) + (/p/i.test(m[3]) ? 12 : 0);
+    } else if (h > 23) continue;
+    return `${String(h).padStart(2, "0")}:${m[2]}`;
+  }
+  return null;
+}
+
 function titleCase(s) {
   return s === s.toUpperCase() ? s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : s;
 }
@@ -158,6 +171,7 @@ export function parseReceipt(text, ocrConfidence = 0.9) {
   }
 
   const { date } = pickDate(lines);
+  const time = pickTime(text);
   const vendor = pickVendor(lines);
 
   let currency = "INR";
@@ -223,7 +237,7 @@ export function parseReceipt(text, ocrConfidence = 0.9) {
   const missing = ["vendor", "date", "total"].filter((f) => ({ vendor, date, total })[f] == null);
   return {
     document_type: "receipt",
-    vendor, date, currency, total, tax, category, city, invoice_number, payment_method, nights,
+    vendor, date, time, currency, total, tax, category, city, invoice_number, payment_method, nights,
     alcohol_amount, attendees: covers, description,
     line_items: items.slice(0, 8).map(({ label, amount }) => ({ description: label, amount })),
     amount_lines: amountLines,

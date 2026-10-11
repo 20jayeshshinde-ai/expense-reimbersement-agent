@@ -64,7 +64,7 @@ function answerOffline(message, snap) {
   if (/^(hi|hello|hey|namaste)\b/.test(q)) return "Hi! Attach your receipts with 📎 (photos or PDFs) and I'll take care of the rest. You can also ask me about your claim status, flagged bills or the policy.";
   if (/help|what can you/.test(q)) return "I can:\n• read receipts you attach (📎) and build your claim\n• tell you your claim status\n• explain why a bill was flagged or reduced\n• explain the expense policy\nTry “why was the fuel bill rejected?”";
   if (/policy|rule|limit|cap|allowed/.test(q) && !named) return "Key policy rules:\n" + POLICY_SUMMARY.map((p) => "• " + p).join("\n");
-  if (!c) return snap.receipts_uploaded ? "Your receipts are still being processed. One moment…" : "You don't have a claim yet. Attach your receipts with 📎 or tap “Try 8 sample receipts”.";
+  if (!c) return snap.receipts_uploaded ? "Your receipts are still being processed. One moment…" : "You don't have a claim yet. Attach your receipts with 📎 or tap “Try 9 sample receipts”.";
 
   if (named) {
     const why = named.failed_checks.length ? `Issues: ${named.failed_checks.join("; ")}.`

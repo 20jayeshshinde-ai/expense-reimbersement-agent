@@ -18,7 +18,7 @@ async function runPipeline(files, demo, hooks) {
   try {
     const started = performance.now();
     agentLight("intake", "busy");
-    hooks.onRead(demo ? ["8 sample receipts"] : files.map((f) => f.name));
+    hooks.onRead(demo ? ["9 sample receipts"] : files.map((f) => f.name));
     let data;
     try {
       if (demo) data = await api("/api/demo", { method: "POST" });
@@ -222,7 +222,7 @@ function chipAction(text) {
   sendChat(text);
 }
 function defaultChips() {
-  if (!current) return setChips(["✨ Try 8 sample receipts", "📎 Attach receipts", "What's the policy?", "What can you do?"]);
+  if (!current) return setChips(["✨ Try 9 sample receipts", "📎 Attach receipts", "What's the policy?", "What can you do?"]);
   setChips(["What's my claim status?", "Why were bills flagged?", "Explain the deductions", "Were any duplicates removed?", "🖥️ Show full report"]);
 }
 function chatWelcome() {
@@ -235,7 +235,7 @@ async function chatUpload(files, demo = false) {
   let progress, log;
   await runPipeline(files, demo, {
     onRead(names) {
-      bubble("user", demo ? "Use the 8 sample receipts" : `Sent ${names.length} receipt${names.length > 1 ? "s" : ""}<div class="files">${names.map((n) => `<span>${esc(n)}</span>`).join("")}</div>`);
+      bubble("user", demo ? "Use the 9 sample receipts" : `Sent ${names.length} receipt${names.length > 1 ? "s" : ""}<div class="files">${names.map((n) => `<span>${esc(n)}</span>`).join("")}</div>`);
       progress = bubble("bot", "📥 Intake Agent is reading your receipts…", "typing");
       setChips([]);
     },
