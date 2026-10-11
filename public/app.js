@@ -99,7 +99,7 @@ function streamAudit() {
       else if (e.type === "verdict") add(`${e.recommendation === "approve" ? "✅" : "⛔"} <b>${esc(e.vendor)}</b>: recommend ${e.recommendation} <span class="risk ${e.risk}">${e.risk} risk</span> <span class="muted">${esc(e.reason)}</span>`, `verdict ${e.recommendation}`);
       else if (e.type === "done" || e.type === "error") { es.close(); resolve(e); }
     };
-    es.onerror = () => { es.close(); resolve({ error: "Lost connection to the audit agent." }); };
+    es.onerror = () => { es.close(); resolve({ error: "Lost connection to the audit agent. If you just updated the code, stop the server (Ctrl+C) and run npm start again." }); };
   });
 }
 
@@ -323,6 +323,10 @@ document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => switchView(t
 
 (async () => {
   CONFIG = await (await fetch("/api/config")).json();
+  if (CONFIG.version !== 3) {
+    document.body.insertAdjacentHTML("afterbegin", `<div style="background:#b3261e;color:#fff;padding:12px 22px;font-weight:600">
+      An older ClaimPilot server is running on this port. Stop it (Ctrl+C in its terminal), run <code>npm start</code> again, then reload this page.</div>`);
+  }
   showEngine();
   // The server verifies the API key at startup; refresh once that check has finished.
   for (let i = 0; i < 10 && CONFIG.status.claude === "checking"; i++) {

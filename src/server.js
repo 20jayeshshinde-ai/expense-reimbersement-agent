@@ -35,7 +35,8 @@ const getClaim = (req) => {
   return claims.get(sidOf(req));
 };
 
-app.get("/api/config", (_req, res) => res.json({ live: status.claude === "ok", status, engine: engineName(), categories: CATEGORIES, policy: POLICY_SUMMARY }));
+const SERVER_VERSION = 3; // bump when the API changes; the page checks it
+app.get("/api/config", (_req, res) => res.json({ version: SERVER_VERSION, live: status.claude === "ok", status, engine: engineName(), categories: CATEGORIES, policy: POLICY_SUMMARY }));
 app.post("/api/engine/recheck", async (_req, res) => res.json(await checkClaude()));
 app.get("/api/claim", (req, res) => res.json(evaluate(getClaim(req))));
 app.post("/api/claim/reset", (req, res) => {
