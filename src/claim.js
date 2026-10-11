@@ -153,8 +153,9 @@ function inferPurpose(group, items) {
 function autoResolve(claim) {
   for (const i of claim.items) {
     i.aiNotes = [];
-    i.excluded = !!(i.duplicate && i.duplicate.kind !== "already_claimed");
-    if (i.excluded) i.aiNotes.push(`Removed automatically – ${i.duplicate.reason}`);
+    // Exact duplicates (same upload or an earlier claim) never go to finance; the employee sees them.
+    i.excluded = !!i.duplicate;
+    if (i.excluded) i.aiNotes.push(`Not submitted – duplicate: ${i.duplicate.reason}`);
   }
   buildGroups(claim);
   for (const g of Object.values(claim.groups)) {
@@ -200,6 +201,25 @@ export function buildSubmission(claim) {
       adjustments: i.adjustments, amountLines: i.amount_lines || [], visualConcerns: i.visual_concerns || [],
       editingTraces: i.editingTraces, receiptFile: i.file, receiptSha256: i.fileHash, extractedBy: i.engine,
     })),
-    removed: s.items.filter((i) => i.excluded).map((i) => ({ vendor: i.vendor, file: i.file, reason: i.aiNotes[0] })),
   };
 }
+
+// Employee-only view of duplicates: what was held back and the original it copies.
+export function duplicateReport(claim) {
+  const prior = priorClaimItems();
+  return claim.items.filter((i) => i.excluded && i.duplicate).map((i) => {
+    const d = i.duplicate;
+    const orig = d.kind === "already_claimed" ? prior.find((p) => p.claimId === d.of) && { claimId: d.of, ...pickPrior(prior, d.of, i) } : claim.items.find((x) => x.id === d.of);
+    return {
+      file: i.file, vendor: i.vendor, date: i.date, time: i.time || null, invoice: i.invoice_number, total: i.total, currency: i.currency,
+      itemCount: (i.line_items || []).length, amountInr: i.amountInr,
+      kind: d.kind, reason: d.reason,
+      original: orig ? {
+        where: d.kind === "already_claimed" ? `Claim ${d.of} (${String(orig.status || "").replace(/_/g, " ")})` : `This upload · ${orig.file}`,
+        file: orig.file || null, vendor: orig.vendor, date: orig.date, time: orig.time || null, invoice: orig.invoice_number, total: orig.total,
+        itemCount: (orig.line_items || []).length,
+      } : null,
+    };
+  });
+}
+const pickPrior = (prior, claimId, i) => prior.find((p) => p.claimId === claimId && compareReceipts(i, p, "") && compareReceipts(i, p, "").kind !== "possible") || {};

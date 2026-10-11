@@ -55,7 +55,7 @@ The badge in the top bar shows which engine is active.
 | `check_metadata_tampering` | EXIF/PDF metadata from Photoshop, Canva, PDF editors, etc., plus visual anomalies from Claude vision |
 | `check_claim_history` | The same bill already submitted or reimbursed in another claim |
 
-**Duplicate rule.** A receipt is only removed or blocked as a duplicate when it is the same file, or **every** detail matches exactly: vendor, date, time, bill/invoice no., currency, total, tax, and every line item with its cost. Near matches (for example, same place, day and amount but a different menu or time) are kept and shown to the approver as a possible duplicate.
+**Duplicate rule.** A receipt is only removed or blocked as a duplicate when it is the same file, or **every** detail matches exactly: vendor, date, time, bill/invoice no., currency, total, tax, and every line item with its cost. Exact duplicates are **never sent to finance**: the employee sees them in a "Duplicate tickets" section with a side-by-side comparison against the original (this upload or the earlier claim). If every receipt in an upload is a duplicate, nothing is submitted at all. Near matches (for example, same place, day and amount but a different menu or time) are kept and shown to the approver as a possible duplicate.
 | `check_policy` | Missing date or amount, outside the 60-day window, future dates, policy caps |
 
 ### The demo set (9 synthetic receipts)
@@ -114,8 +114,8 @@ Before `npm start`, open `.env` and paste a key: `GEMINI_API_KEY=...` or `ANTHRO
 
 Open the URL the terminal prints. If port 3000 is busy, it moves to 3001 automatically. The terminal and the top-bar badge show the engine:
 
-- `● Live AI · Gemini` (or Claude): real-time mode. Upload any receipt.
-- `AI engine: Local (offline)`: there's no key, or the key was rejected. Everything still works on the offline engine.
+- `● Live AI`: real-time mode (Gemini or Claude). Upload any receipt.
+- `● Offline AI`: there's no key, or the key was rejected. Everything still works on the offline engine.
 
 The app opens on a sign-in page with two separate portals (demo accounts, no password):
 

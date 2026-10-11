@@ -4,7 +4,7 @@ export const sid = sessionStorage.sid || (sessionStorage.sid = crypto.randomUUID
 export const inr = (n) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-export const SERVER_VERSION = 5;
+export const SERVER_VERSION = 6;
 export const CONFIG = { categories: {}, status: {}, policy: [] };
 export const localPreviews = {}; // file name -> object URL (employee's own uploads)
 
@@ -38,7 +38,7 @@ export function showEngine() {
   const el = $("#engine");
   if (!el) return;
   el.className = `engine ${s.claude === "ok" ? "live" : s.claude === "checking" ? "chk" : "off"}`;
-  el.innerHTML = s.claude === "ok" ? `● Live AI · ${esc(s.provider)}<br/><small>${esc(s.model)}</small>` : s.claude === "checking" ? `Connecting to ${esc(s.provider)}…` : `● Offline AI engine<br/><small>${esc(s.detail || "")}</small>`;
+  el.innerHTML = s.claude === "ok" ? "● Live AI" : s.claude === "checking" ? "Connecting…" : "● Offline AI";
   el.title = s.claude === "ok" ? s.detail : `Live AI not active – ${s.detail}. Receipts are read by the offline local AI engine.`;
 }
 
@@ -55,6 +55,44 @@ export async function loadConfig() {
     Object.assign(CONFIG, await (await fetch("/api/config")).json());
     showEngine();
   }
+}
+
+// ---------- duplicate tickets (employee only – these never reach finance) ----------
+export function duplicatesHtml(dups) {
+  if (!dups?.length) return "";
+  const thumb = (file) => {
+    if (!file) return "";
+    const src = localPreviews[file] || (/^\d\d_/.test(file) ? `/samples/${encodeURIComponent(file)}` : null);
+    return src && !/\.pdf$/i.test(file) ? `<img src="${src}" alt="" loading="lazy"/>` : "";
+  };
+  const row = (label, a, b) => `<tr><td>${label}</td><td>${esc(a ?? "—")}</td><td>${esc(b ?? "—")}</td><td>${a === b ? "✅" : "≠"}</td></tr>`;
+  return `
+    <h3 class="sec dup-head">🔁 Duplicate tickets · not sent to finance <small>${dups.length} receipt${dups.length > 1 ? "s" : ""} · every detail matches an existing bill</small></h3>
+    ${dups.map((d) => `
+      <div class="dup card">
+        <div class="dup-top">
+          <div class="dup-badge">${d.kind === "already_claimed" ? "ALREADY CLAIMED" : "DUPLICATE"}</div>
+          <div><b>${esc(d.vendor)}</b> · ${esc(d.date || "no date")}${d.time ? " " + esc(d.time) : ""} · ${inr(d.amountInr ?? d.total)}
+            <div class="muted">${esc(d.file)} · ${esc(d.reason)}</div></div>
+          <div class="dup-amt">${inr(0)}<small>not claimed</small></div>
+        </div>
+        ${d.original ? `
+        <div class="dup-body">
+          <div class="dup-imgs"><figure>${thumb(d.file)}<figcaption>This upload</figcaption></figure><figure>${thumb(d.original.file)}<figcaption>${esc(d.original.where)}</figcaption></figure></div>
+          <table class="dup-cmp">
+            <thead><tr><th></th><th>This receipt</th><th>${esc(d.original.where)}</th><th></th></tr></thead>
+            <tbody>
+              ${row("Vendor", d.vendor, d.original.vendor)}
+              ${row("Date", d.date, d.original.date)}
+              ${row("Time", d.time, d.original.time)}
+              ${row("Bill / invoice no.", d.invoice, d.original.invoice)}
+              ${row("Items", `${d.itemCount} line${d.itemCount === 1 ? "" : "s"}`, `${d.original.itemCount} line${d.original.itemCount === 1 ? "" : "s"}`)}
+              ${row("Total", d.total != null ? inr(d.total) : null, d.original.total != null ? inr(d.original.total) : null)}
+            </tbody>
+          </table>
+        </div>` : ""}
+        <div class="dup-foot">ℹ️ ${d.kind === "already_claimed" ? "You already claimed this bill, so it wasn't submitted again." : "You uploaded the same receipt twice. It's claimed once."} If this is a genuinely different expense, upload the correct receipt.</div>
+      </div>`).join("")}`;
 }
 
 // ---------- bill card (shared: employee status + finance review) ----------
@@ -85,7 +123,7 @@ export function lineCard(l, aiNotes = [], controls = "") {
       <div class="checks"><b style="font-size:13px">Audit Agent evidence · authenticity ${l.authenticityScore}/100</b>
         ${l.checks.map((c) => `<div class="chk ${c.status}"><span>${c.status === "pass" ? "✅" : c.status === "warn" ? "⚠️" : "❌"}</span><span class="n">${esc(c.name)}</span><span class="d">${esc(c.detail)}</span></div>`).join("")}
       </div>
-      <div class="fields"><b style="grid-column:1/3;font-size:13px">Read by ${esc(l.extractedBy)}</b>
+      <div class="fields"><b style="grid-column:1/3;font-size:13px">Read by ${/local/i.test(l.extractedBy) ? "Offline AI" : "Live AI"}</b>
         <span>Vendor</span><span>${esc(l.vendor)}</span><span>Date</span><span>${esc(l.date || "—")}</span>
         <span>Amount</span><span>${esc(l.currency)} ${l.amount ?? "—"}</span><span>Tax</span><span>${l.tax ?? "—"}</span>
         <span>Invoice #</span><span>${esc(l.invoiceNumber || "—")}</span><span>GSTIN</span><span>${esc(l.gstin || "—")}</span>

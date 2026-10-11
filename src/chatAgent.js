@@ -15,7 +15,7 @@ function snapshot(state) {
     employee: state.employee?.name,
     receipts_uploaded: state.totals.receipts,
     trips: state.groups.filter((g) => g.kind === "trip").map((g) => ({ title: g.title, from: g.start, to: g.end, purpose: g.purpose })),
-    removed_automatically: state.items.filter((i) => i.excluded).map((i) => ({ vendor: i.vendor, file: i.file, reason: i.aiNotes?.[0] })),
+    duplicate_tickets_not_sent_to_finance: state.items.filter((i) => i.excluded).map((i) => ({ vendor: i.vendor, file: i.file, date: i.date, time: i.time, amount: i.total, reason: i.duplicate?.reason })),
     claim: d && {
       id: d.claimId, status: d.status, agent: d.agent, agent_summary: d.agentSummary,
       claimed_inr: d.claimedAmount, recommended_inr: d.recommendedAmount, approved_inr: d.approvedAmount,
@@ -64,6 +64,12 @@ function answerOffline(message, snap) {
   if (/^(hi|hello|hey|namaste)\b/.test(q)) return "Hi! Attach your receipts with 📎 (photos or PDFs) and I'll take care of the rest. You can also ask me about your claim status, flagged bills or the policy.";
   if (/help|what can you/.test(q)) return "I can:\n• read receipts you attach (📎) and build your claim\n• tell you your claim status\n• explain why a bill was flagged or reduced\n• explain the expense policy\nTry “why was the fuel bill rejected?”";
   if (/policy|rule|limit|cap|allowed/.test(q) && !named) return "Key policy rules:\n" + POLICY_SUMMARY.map((p) => "• " + p).join("\n");
+  if (/duplicate|twice|removed|same receipt/.test(q)) {
+    const d = snap.duplicate_tickets_not_sent_to_finance;
+    return d.length
+      ? `${d.length} duplicate ticket${d.length > 1 ? "s were" : " was"} held back and not sent to finance:\n` + d.map((r) => `• ${r.vendor} (${r.file}): ${r.reason}`).join("\n")
+      : "No duplicates found. Every receipt you sent is unique.";
+  }
   if (!c) return snap.receipts_uploaded ? "Your receipts are still being processed. One moment…" : "You don't have a claim yet. Attach your receipts with 📎 or tap “Try 9 sample receipts”.";
 
   if (named) {
@@ -81,11 +87,6 @@ function answerOffline(message, snap) {
     const ded = bills.filter((b) => b.deductions.length);
     if (!ded.length) return "No policy deductions on your claim.";
     return `Policy deductions total ${fmt(c.policy_deductions_inr)}:\n` + ded.map((b) => `• ${b.vendor}: ${b.deductions.join("; ")}`).join("\n");
-  }
-  if (/duplicate|twice|removed/.test(q)) {
-    return snap.removed_automatically.length
-      ? "Removed automatically:\n" + snap.removed_automatically.map((r) => `• ${r.vendor} (${r.file}): ${r.reason}`).join("\n")
-      : "No duplicates were found.";
   }
   if (/status|approv|when|pay|money|reimburs|total|how much|amount/.test(q)) {
     const amt = c.status === "pending_approval" ? `${fmt(c.recommended_inr)} recommended by the Audit Agent` : `${fmt(c.approved_inr)} approved by ${c.approver}`;

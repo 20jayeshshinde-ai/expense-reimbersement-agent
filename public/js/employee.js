@@ -1,11 +1,12 @@
 // Employee portal: submit receipts (Web or Chat mode), watch the agents, see the decision.
 // Employees never see finance controls; approval happens in the separate Finance portal.
-import { $, api, sid, inr, esc, sleep, toast, agentLight, loadConfig, lineCard, localPreviews, CONFIG, LABEL, ICON } from "./common.js";
+import { $, api, sid, inr, esc, sleep, toast, agentLight, loadConfig, lineCard, duplicatesHtml, localPreviews, CONFIG, LABEL, ICON } from "./common.js";
 
 let mode = localStorage.mode === "chat" ? "chat" : "web";
 let busy = false;
 let current = null; // latest decision for this session
 let elapsed = 0, claimNotes = {}, pollTimer = null;
+let duplicates = []; // employee-only: receipts held back as duplicates
 
 // =====================================================================
 // Shared pipeline – used by both Web and Chat modes.
@@ -34,7 +35,7 @@ async function runPipeline(files, demo, hooks) {
     if (!data.claim) return hooks.onError("Something went wrong reading the files.");
     hooks.onReadDone(data.report, data.claim);
     const c = data.claim;
-    if (!c.totals.items) return hooks.onError("No expenses could be read from these files. Try clearer photos or PDFs.");
+    if (!c.totals.items && !c.totals.removed) return hooks.onError("No expenses could be read from these files. Try clearer photos or PDFs.");
 
     agentLight("build", "busy");
     await sleep(500);
@@ -45,6 +46,8 @@ async function runPipeline(files, demo, hooks) {
     agentLight("audit", "busy");
     const res = await streamAudit(hooks.onAuditEvent);
     agentLight("audit", "done");
+    duplicates = res.duplicates || [];
+    if (res.onlyDuplicates) return hooks.onOnlyDuplicates(duplicates);
     if (!res.decision) return hooks.onError(res.error || "Audit failed.");
     elapsed = (performance.now() - started) / 1000;
     claimNotes = Object.fromEntries(c.items.map((i) => [i.id, i.aiNotes]));
@@ -73,7 +76,8 @@ function streamAudit(onEvent) {
 function watchStatus() {
   clearInterval(pollTimer);
   pollTimer = setInterval(async () => {
-    const { decision } = await api("/api/claim/status");
+    const { decision, duplicates: dups } = await api("/api/claim/status");
+    if (dups) duplicates = dups;
     if (decision && decision.status !== "pending_approval") {
       clearInterval(pollTimer);
       current = decision;
@@ -126,7 +130,7 @@ const webHooks = {
     showStage("process");
     setStep("read");
     $("#procTitle").textContent = "Intake Agent is reading your receipts…";
-    $("#procSub").textContent = CONFIG.live ? `${CONFIG.status.provider} · vision + PDF understanding · tamper inspection` : "Local AI · neural OCR + receipt parser";
+    $("#procSub").textContent = "Live AI · vision + PDF understanding · tamper inspection";
     $("#procFiles").innerHTML = names.map((n) => `<div class="pf"><span>⏳</span><span class="nm">${esc(n)}</span></div>`).join("");
   },
   onReadDone(report) {
@@ -136,7 +140,7 @@ const webHooks = {
     setStep("build");
     const trips = c.groups.filter((g) => g.kind === "trip").map((g) => g.title);
     $("#procTitle").textContent = "Claim built automatically";
-    $("#procSub").textContent = `${c.totals.items} expenses · ${trips.length ? trips.join(", ") + " · " : ""}${c.totals.removed ? `${c.totals.removed} duplicate removed · ` : ""}purpose and categories filled in by AI`;
+    $("#procSub").textContent = `${c.totals.items} expenses · ${trips.length ? trips.join(", ") + " · " : ""}${c.totals.removed ? `${c.totals.removed} duplicate${c.totals.removed > 1 ? "s" : ""} held back · ` : ""}purpose and categories filled in by AI`;
     setTimeout(() => {
       setStep("verify");
       $("#procTitle").textContent = "Audit Agent is checking every bill…";
@@ -147,12 +151,29 @@ const webHooks = {
   onAuditEvent(e) { const log = $("#agentLog"); if (log) appendEvent(log, e); },
   onDecision(d) { renderStatus(d); },
   onError(msg) { webFail(msg); },
+  onOnlyDuplicates(dups) { renderOnlyDuplicates(dups); },
 };
 
 function webFail(msg) {
   showStage("decision");
   $("#stage-decision").innerHTML = `<div class="hero rejected"><div class="badge">⚠️</div><div><div class="amount" style="font-size:22px">${esc(msg)}</div></div><div></div></div>
     <div class="actions-row"><button class="btn primary" id="againBtn">Try again</button></div>`;
+  $("#againBtn").onclick = reset;
+}
+
+// Every receipt was a duplicate: nothing is submitted, the employee sees why.
+function renderOnlyDuplicates(dups) {
+  showStage("decision");
+  setStep("verify");
+  $("#stage-decision").innerHTML = `
+    <div class="hero dupe">
+      <div class="badge">🔁</div>
+      <div><div class="status">Nothing new to claim</div><div class="amount">${dups.length} duplicate${dups.length > 1 ? "s" : ""}</div>
+        <div class="sub">These receipts match bills you've already claimed, so nothing was sent to finance.</div></div>
+      <div class="meta">0 sent to finance</div>
+    </div>
+    ${duplicatesHtml(dups)}
+    <div class="actions-row"><button class="btn primary" id="againBtn">Upload other receipts</button></div>`;
   $("#againBtn").onclick = reset;
 }
 
@@ -186,10 +207,10 @@ function renderStatus(d) {
       <div class="kpi bad"><div class="l">${pending ? "Flagged bills" : "Rejected bills"}</div><div class="v">${inr(pending ? d.flaggedAmount : d.rejectedAmount)}</div></div>
     </div>
     ${pending ? `<div class="waiting"><div class="spinner"></div><div><b>With finance for approval.</b> You don't need to do anything. This page updates by itself when the approver decides.</div></div>` : ""}
+    ${duplicatesHtml(duplicates)}
     ${flagged.length ? `<h3 class="sec">${pending ? "Flagged by Audit Agent" : "Rejected"} <small>${flagged.length} bill${flagged.length > 1 ? "s" : ""}</small></h3>${flagged.map((l) => lineCard(l, claimNotes[l.itemId])).join("")}` : ""}
     <h3 class="sec">${pending ? "Verified by Audit Agent" : "Approved"} <small>${ok.length} bill${ok.length === 1 ? "" : "s"} · tap a bill for details</small></h3>
     ${ok.map((l) => lineCard(l, claimNotes[l.itemId])).join("")}
-    ${d.removed.length ? `<h3 class="sec">Removed automatically <small>not sent to finance</small></h3>${d.removed.map((r) => `<div class="removed">🔁 ${esc(r.vendor)} · ${esc(r.file)} – ${esc(r.reason)}</div>`).join("")}` : ""}
     <div class="actions-row"><button class="btn primary" id="againBtn">Start a new claim</button><button class="btn" id="askChat">💬 Ask about this claim</button></div>`;
   $("#againBtn").onclick = reset;
   $("#askChat").onclick = () => setMode("chat");
@@ -223,7 +244,7 @@ function chipAction(text) {
 }
 function defaultChips() {
   if (!current) return setChips(["✨ Try 9 sample receipts", "📎 Attach receipts", "What's the policy?", "What can you do?"]);
-  setChips(["What's my claim status?", "Why were bills flagged?", "Explain the deductions", "Were any duplicates removed?", "🖥️ Show full report"]);
+  setChips(["What's my claim status?", "Why were bills flagged?", "Explain the deductions", "Show my duplicate tickets", "🖥️ Show full report"]);
 }
 function chatWelcome() {
   if ($("#chatMsgs").children.length) return;
@@ -247,12 +268,16 @@ async function chatUpload(files, demo = false) {
     onBuilt(c) {
       const trips = c.groups.filter((g) => g.kind === "trip").map((g) => g.title);
       const removed = c.items.filter((i) => i.excluded);
-      botSay(`🧩 Claim built: ${c.totals.items} expenses${trips.length ? ` · ${trips.join(", ")}` : ""}${removed.length ? ` · removed ${removed.length} duplicate (${removed.map((r) => r.vendor).join(", ")})` : ""}. Purpose, categories and GL codes filled in automatically.`);
+      botSay(`🧩 Claim built: ${c.totals.items} expenses${trips.length ? ` · ${trips.join(", ")}` : ""}${removed.length ? ` · held back ${removed.length} duplicate${removed.length > 1 ? "s" : ""} (${removed.map((r) => r.vendor).join(", ")})` : ""}. Purpose, categories and GL codes filled in automatically.`);
       log = bubble("bot", `🛡️ <b>Audit Agent is checking every bill…</b><div class="mini-log"></div>`, "wide").querySelector(".mini-log");
     },
     onAuditEvent(e) { if (log) appendEvent(log, e); },
     onDecision(d) { chatDecision(d); },
     onError(msg) { if (progress) progress.classList.remove("typing"); botSay(`⚠️ ${msg}`); defaultChips(); },
+    onOnlyDuplicates(dups) {
+      bubble("bot", `<div class="result-card"><div class="rc-top"><div>🔁 <b>Nothing new to claim</b><div class="muted" style="font-size:12.5px">All ${dups.length} receipt${dups.length > 1 ? "s" : ""} match bills you already claimed. Nothing was sent to finance.</div></div></div>${chatDupList(dups)}</div>`, "wide");
+      defaultChips();
+    },
   });
 }
 
@@ -271,10 +296,17 @@ function chatDecision(d) {
   bubble("bot", `<div class="result-card">
       <div class="rc-top">${head}<div class="rc-amt">${inr(amount)}</div></div>
       <ul>${rows}</ul>
+      ${chatDupList(duplicates)}
       <div class="rc-actions"><button class="btn" data-act="web">🖥️ Full report</button>${pending ? "" : `<button class="btn" data-act="new">➕ New claim</button>`}</div>
     </div>`, "wide").querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => (b.dataset.act === "web" ? setMode("web") : reset())));
   chatHistory.push({ role: "assistant", text: `Claim ${d.claimId} ${LABEL[d.status]}: ${inr(amount)}.` });
   defaultChips();
+}
+
+function chatDupList(dups) {
+  if (!dups?.length) return "";
+  return `<div class="dup-mini"><b>🔁 Duplicate tickets (not sent to finance)</b><ul>${dups.map((d) =>
+    `<li><span>${esc(d.vendor)} · ${esc(d.date || "")}${d.time ? " " + esc(d.time) : ""} <small>${esc(d.file)} – ${esc(d.kind === "already_claimed" ? "already claimed in " + (d.original?.where || "an earlier claim") : "same as " + (d.original?.file || "another upload"))}</small></span><b>${inr(0)}</b></li>`).join("")}</ul></div>`;
 }
 
 async function sendChat(text) {
@@ -320,6 +352,7 @@ async function reset() {
   Object.values(localPreviews).forEach(URL.revokeObjectURL);
   for (const k of Object.keys(localPreviews)) delete localPreviews[k];
   current = null;
+  duplicates = [];
   ["intake", "build", "audit", "chat"].forEach((a) => agentLight(a, null));
   setStep("upload");
   showStage("upload");
@@ -353,7 +386,8 @@ document.querySelectorAll("#modeSwitch button").forEach((b) => (b.onclick = () =
   setStep("upload");
   setMode(mode);
   // Resume a claim already submitted in this tab (e.g. after a page reload).
-  const { decision } = await api("/api/claim/status");
+  const { decision, duplicates: dups } = await api("/api/claim/status");
+  duplicates = dups || [];
   if (decision) {
     current = decision;
     if (mode === "web") renderStatus(decision); else chatDecision(decision);

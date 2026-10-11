@@ -76,7 +76,6 @@ function show(claimId) {
       </div>
       <div class="muted" style="font-size:12.5px;margin-top:8px">Each bill is pre-set to the AI recommendation. Change any bill before approving; open a bill to see the evidence and the receipt.</div>
     </div>
-    ${d.removed.length ? `<div class="removed">🔁 ${d.removed.length} duplicate${d.removed.length > 1 ? "s" : ""} removed automatically before submission: ${d.removed.map((r) => esc(r.vendor)).join(", ")}</div>` : ""}
     ${d.lines.map((l) => lineCard(l, [], toggle(l))).join("")}`;
 
   const choices = Object.fromEntries(d.lines.map((l) => [l.itemId, l.recommendation]));

@@ -169,7 +169,7 @@ async function runAIAgent(lines, tools, emit) {
     addToolResults(convo, results);
     if (summary && Object.keys(verdicts).length >= lines.length) break;
   }
-  return { verdicts, summary, agent: `${aiName().replace(" (", " Audit Agent (")}` };
+  return { verdicts, summary, agent: "Audit Agent (Live AI)" };
 }
 
 // ---------------- offline rule-based agent (same tools, fixed plan) ----------------
@@ -199,7 +199,7 @@ async function runOfflineAgent(lines, tools, emit) {
     emit({ type: "verdict", ...v, vendor: l.vendor });
   }
   const rej = Object.values(verdicts).filter((v) => v.recommendation === "reject").length;
-  return { verdicts, summary: `${lines.length - rej} bills verified, ${rej} flagged for rejection.`, agent: "Rule-based audit agent (offline)" };
+  return { verdicts, summary: `${lines.length - rej} bills verified, ${rej} flagged for rejection.`, agent: "Audit Agent (Offline AI)" };
 }
 
 // ---------------- entry point ----------------
@@ -210,15 +210,15 @@ export async function runAudit(submission, priorDup, emit = () => {}) {
   let run;
   if (status.claude !== "no_key" && aiUsable()) {
     try {
-      emit({ type: "agent", text: `${status.provider} Audit Agent (${status.model}) started` });
+      emit({ type: "agent", text: "Audit Agent (Live AI) started" });
       run = await runAIAgent(lines, tools, emit);
     } catch (e) {
       console.warn(`AI audit agent failed: ${e.message}`);
-      emit({ type: "thought", text: `${aiName()} unavailable (${e.message.slice(0, 120)}); switching to the offline audit agent.` });
+      emit({ type: "thought", text: `Live AI unavailable (${e.message.slice(0, 120)}); switching to the offline audit agent.` });
     }
   }
   if (!run) {
-    emit({ type: "agent", text: "Rule-based audit agent (offline) started" });
+    emit({ type: "agent", text: "Audit Agent (Offline AI) started" });
     run = await runOfflineAgent(lines, tools, emit);
   }
 
@@ -249,7 +249,6 @@ export async function runAudit(submission, priorDup, emit = () => {}) {
     flaggedCount: bad.length,
     approvalLevel: ok.reduce((s, l) => s + l.recommendedInr, 0) > POLICY.managerApprovalAbove ? "Finance + manager" : "Finance approver",
     lines: out,
-    removed: submission.removed,
     reviewedAt: new Date().toISOString(),
     approvedAmount: 0, approver: null, decidedAt: null, payout: null,
   };

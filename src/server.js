@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkClaude, engineName, extractDocument, status } from "./extractor.js";
 import { warmUpOcr } from "./localAI.js";
-import { addExtraction, buildSubmission, createClaim, evaluate } from "./claim.js";
+import { addExtraction, buildSubmission, createClaim, duplicateReport, evaluate } from "./claim.js";
 import { finalize } from "./financeAgent.js";
 import { runAudit } from "./auditAgent.js";
 import { chat } from "./chatAgent.js";
@@ -39,7 +39,7 @@ const getClaim = (req) => {
   return claims.get(sidOf(req));
 };
 
-const SERVER_VERSION = 5; // bump when the API changes; the page checks it
+const SERVER_VERSION = 6; // bump when the API changes; the page checks it
 app.get("/api/config", (_req, res) => res.json({ version: SERVER_VERSION, live: status.claude === "ok", status, engine: engineName(), categories: CATEGORIES, policy: POLICY_SUMMARY }));
 app.post("/api/engine/recheck", async (_req, res) => res.json(await checkClaude()));
 app.get("/api/claim", (req, res) => res.json(evaluate(getClaim(req))));
@@ -96,14 +96,19 @@ app.get("/api/submit/stream", async (req, res) => {
   try {
     if (!claim) throw new Error("No claim for this session.");
     const state = evaluate(claim);
-    if (!state.totals.items) throw new Error("Add at least one receipt first.");
+    const duplicates = duplicateReport(claim);
+    if (!state.totals.items) {
+      // Everything was a duplicate: nothing goes to finance.
+      if (duplicates.length) return send({ type: "done", decision: null, duplicates, onlyDuplicates: true }), res.end();
+      throw new Error("Add at least one receipt first.");
+    }
     if (!claim.decision) {
-      const priorDup = Object.fromEntries(state.items.filter((i) => i.duplicate?.kind === "already_claimed").map((i) => [i.id, i.duplicate.reason]));
-      const decision = await runAudit(buildSubmission(claim), priorDup, send);
+      // Duplicates are held back before this point, so the Audit Agent and finance never see them.
+      const decision = await runAudit(buildSubmission(claim), {}, send);
       enqueue(claim.employee, decision);
       claim.decision = decision; // shared object: the employee view sees the approver's decision when it lands
     }
-    send({ type: "done", decision: claim.decision });
+    send({ type: "done", decision: claim.decision, duplicates });
   } catch (e) {
     send({ type: "error", error: e.message });
   }
@@ -119,7 +124,11 @@ app.post("/api/chat", async (req, res) => {
 });
 
 // Employee polls their claim's status.
-app.get("/api/claim/status", (req, res) => res.json({ decision: getClaim(req).decision }));
+app.get("/api/claim/status", (req, res) => {
+  const claim = getClaim(req);
+  evaluate(claim);
+  res.json({ decision: claim.decision, duplicates: duplicateReport(claim) });
+});
 
 // Human finance approver decides (the ONLY path to approval).
 app.post("/api/finance/claims/:id/decide", (req, res) => {
